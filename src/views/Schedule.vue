@@ -64,7 +64,15 @@ const calendarOptions = {
   select: handleDateSelect,
   eventClick: handleEventClick,
   eventDrop: handleEventDrop,
-  eventResize: handleEventResize
+  eventResize: handleEventResize,
+  nowIndicator: true,
+  slotEventOverlap: false,
+  eventTimeFormat: {
+    hour: '2-digit',
+    minute: '2-digit',
+    meridiem: false,
+    hour12: false
+  }
 }
 
 const events = computed(() => {
@@ -85,10 +93,10 @@ const events = computed(() => {
 })
 
 function getEventColor(task: Task): string {
-  if (task.urgent && task.important) return '#FF6B6B'
-  if (task.important) return '#4DB6AC'
-  if (task.urgent) return '#FFB74D'
-  return '#90A4AE'
+  if (task.urgent && task.important) return 'rgba(255, 107, 107, 0.9)'
+  if (task.important) return 'rgba(77, 182, 172, 0.9)'
+  if (task.urgent) return 'rgba(255, 183, 77, 0.9)'
+  return 'rgba(144, 164, 174, 0.9)'
 }
 
 function handleDateSelect(selectInfo: any) {
@@ -140,10 +148,11 @@ function assignTask(task: Task) {
 }
 
 const getTaskClass = (task: Task) => {
-  if (task.urgent && task.important) return 'bg-brand-orange/10'
-  if (task.important) return 'bg-brand-mint/10'
-  if (task.urgent) return 'bg-yellow-500/10'
-  return 'bg-gray-500/10'
+  const baseClasses = 'transition-all duration-300 hover:scale-[1.02] hover:shadow-lg'
+  if (task.urgent && task.important) return `${baseClasses} from-brand-orange/20 to-transparent`
+  if (task.important) return `${baseClasses} from-brand-mint/20 to-transparent`
+  if (task.urgent) return `${baseClasses} from-yellow-500/20 to-transparent`
+  return `${baseClasses} from-gray-500/20 to-transparent`
 }
 </script>
 
@@ -152,16 +161,16 @@ const getTaskClass = (task: Task) => {
     <div class="flex flex-col gap-8">
       <!-- Header Section -->
       <div class="text-center">
-        <h1 class="text-4xl mb-2 bg-gradient-to-r from-brand-orange to-brand-mint bg-clip-text text-transparent">
+        <h1 class="text-4xl mb-2 bg-gradient-to-r from-brand-orange to-brand-mint bg-clip-text text-transparent font-montserrat">
           Schedule Planner
         </h1>
-        <p class="text-brand-blue/60 dark:text-white/60">
+        <p class="text-brand-blue/60 dark:text-white/60 font-opensans">
           Plan and organize your tasks efficiently
         </p>
       </div>
 
       <!-- Calendar Section -->
-      <div class="neumorphic p-6 rounded-2xl bg-white/80 dark:bg-brand-blue/80">
+      <div class="neumorphic p-8 rounded-3xl bg-white/90 dark:bg-brand-blue/90 backdrop-blur-xl">
         <FullCalendar 
           ref="calendarRef"
           :options="calendarOptions"
@@ -174,14 +183,14 @@ const getTaskClass = (task: Task) => {
     <!-- Task Selector Modal -->
     <div 
       v-if="showTaskSelector"
-      class="fixed inset-0 bg-black/30 flex items-center justify-center backdrop-blur-md"
+      class="fixed inset-0 bg-black/20 dark:bg-black/40 flex items-center justify-center backdrop-blur-xl transition-all duration-300"
       @click.self="showTaskSelector = false"
     >
-      <div class="neumorphic p-8 rounded-2xl w-full max-w-md bg-white/90 dark:bg-brand-blue/90">
-        <h2 class="text-2xl font-bold mb-6 bg-gradient-to-r from-brand-orange to-brand-mint bg-clip-text text-transparent">
+      <div class="neumorphic p-8 rounded-3xl w-full max-w-md bg-white/90 dark:bg-brand-blue/90 backdrop-blur-xl transform transition-all duration-300 scale-100 hover:scale-[1.02]">
+        <h2 class="text-2xl font-bold mb-2 bg-gradient-to-r from-brand-orange to-brand-mint bg-clip-text text-transparent">
           Schedule Task
         </h2>
-        <p class="text-sm mb-6 text-brand-blue/60 dark:text-white/60">
+        <p class="text-sm mb-6 text-brand-blue/60 dark:text-white/60 font-opensans">
           {{ dayjs(selectedTimeSlot?.start).format('MMM D, YYYY h:mm A') }}
         </p>
         
@@ -189,7 +198,7 @@ const getTaskClass = (task: Task) => {
           <div 
             v-for="task in availableTasks"
             :key="task.id"
-            class="neumorphic p-4 rounded-xl cursor-pointer transform transition-all duration-300 hover:scale-[1.02] hover:shadow-lg"
+            class="neumorphic p-4 rounded-2xl cursor-pointer bg-gradient-to-r"
             :class="getTaskClass(task)"
             @click="assignTask(task)"
           >
@@ -197,17 +206,17 @@ const getTaskClass = (task: Task) => {
             <div class="flex gap-2 mt-2">
               <span 
                 v-if="task.urgent" 
-                class="text-xs px-2 py-0.5 rounded-full bg-brand-orange/10 text-brand-orange"
+                class="text-xs px-3 py-1 rounded-full bg-gradient-to-r from-brand-orange/20 to-transparent backdrop-blur-sm"
               >
                 Urgent
               </span>
               <span 
                 v-if="task.important" 
-                class="text-xs px-2 py-0.5 rounded-full bg-brand-mint/10 text-brand-mint"
+                class="text-xs px-3 py-1 rounded-full bg-gradient-to-r from-brand-mint/20 to-transparent backdrop-blur-sm"
               >
                 Important
               </span>
-              <span class="text-xs px-2 py-0.5 rounded-full bg-brand-blue/10 dark:bg-white/10">
+              <span class="text-xs px-3 py-1 rounded-full bg-brand-blue/10 dark:bg-white/10 backdrop-blur-sm">
                 Due: {{ task.dueDate }}
               </span>
             </div>
@@ -218,12 +227,14 @@ const getTaskClass = (task: Task) => {
           </div>
         </div>
 
-        <button 
-          @click="showTaskSelector = false"
-          class="mt-6 w-full bg-gradient-to-r from-brand-orange to-brand-mint text-white px-6 py-3 rounded-xl hover:opacity-90 transition-opacity font-semibold"
-        >
-          Close
-        </button>
+        <div class="flex gap-4 mt-8">
+          <button 
+            @click="showTaskSelector = false"
+            class="w-full bg-gradient-to-r from-brand-orange to-brand-mint text-white px-6 py-3 rounded-2xl hover:opacity-90 transition-all duration-300 transform hover:scale-[1.02] font-semibold shadow-lg hover:shadow-xl"
+          >
+            Close
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -243,24 +254,24 @@ const getTaskClass = (task: Task) => {
 }
 
 .fc .fc-button {
-  @apply bg-white/30 dark:bg-brand-blue/30 backdrop-blur-lg px-4 py-2 rounded-xl border-none shadow-none hover:bg-brand-orange/10 transition-colors !important;
+  @apply bg-white/30 dark:bg-brand-blue/30 backdrop-blur-lg px-6 py-3 rounded-2xl border-none shadow-none hover:bg-brand-orange/10 transition-all duration-300 transform hover:scale-[1.02] !important;
 }
 
 .fc .fc-button-primary:not(:disabled).fc-button-active,
 .fc .fc-button-primary:not(:disabled):active {
-  @apply bg-brand-orange/20 !important;
+  @apply bg-brand-orange/20 transform scale-[0.98] !important;
 }
 
 .fc .fc-timegrid-slot {
-  @apply h-16;
+  @apply h-16 transition-colors duration-300;
 }
 
 .fc .fc-timegrid-slot-lane {
-  @apply bg-white/30 dark:bg-brand-blue/30 backdrop-blur-lg;
+  @apply bg-white/30 dark:bg-brand-blue/30 backdrop-blur-lg rounded-xl;
 }
 
 .fc .fc-timegrid-now-indicator-line {
-  @apply border-brand-orange;
+  @apply border-brand-orange border-2;
 }
 
 .fc .fc-timegrid-now-indicator-arrow {
@@ -268,15 +279,15 @@ const getTaskClass = (task: Task) => {
 }
 
 .fc .fc-event {
-  @apply rounded-xl border-none cursor-pointer transition-transform hover:scale-[1.02] shadow-lg;
+  @apply rounded-2xl border-none cursor-pointer transition-all duration-300 hover:scale-[1.02] shadow-lg hover:shadow-xl backdrop-blur-sm;
 }
 
 .fc .fc-event-time {
-  @apply font-semibold;
+  @apply font-semibold px-3 pt-2;
 }
 
 .fc .fc-event-title {
-  @apply font-medium;
+  @apply font-medium px-3 pb-2;
 }
 
 .fc .fc-timegrid-event {
@@ -284,11 +295,11 @@ const getTaskClass = (task: Task) => {
 }
 
 .fc .fc-timegrid-col-frame {
-  @apply bg-white/30 dark:bg-brand-blue/30;
+  @apply bg-white/30 dark:bg-brand-blue/30 rounded-2xl overflow-hidden;
 }
 
 .calendar-container {
-  @apply rounded-xl overflow-hidden shadow-xl;
+  @apply rounded-2xl overflow-hidden shadow-xl;
 }
 
 .custom-scrollbar {
@@ -306,5 +317,34 @@ const getTaskClass = (task: Task) => {
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
   @apply bg-brand-orange/50 rounded-full hover:bg-brand-orange/70 transition-colors;
+}
+
+/* Additional modern styling */
+.fc td, .fc th {
+  @apply border-brand-orange/10 dark:border-white/10;
+}
+
+.fc-theme-standard td, .fc-theme-standard th {
+  @apply border-brand-orange/10 dark:border-white/10;
+}
+
+.fc-timegrid-col-events {
+  @apply px-1;
+}
+
+.fc-timegrid-event-harness {
+  @apply px-1;
+}
+
+.fc-timegrid-cols {
+  @apply rounded-2xl overflow-hidden;
+}
+
+.fc-scroller {
+  @apply !overflow-y-auto custom-scrollbar;
+}
+
+.fc-scroller-liquid-absolute {
+  @apply !overflow-y-auto custom-scrollbar;
 }
 </style>
