@@ -41,7 +41,6 @@ const scrollToBottom = () => {
 const sendMessage = async () => {
   if (!inputMessage.value.trim()) return
 
-  // Add user message
   messages.value.push({
     id: Date.now(),
     type: 'user',
@@ -52,24 +51,20 @@ const sendMessage = async () => {
   const userMessage = inputMessage.value
   inputMessage.value = ''
   
-  // Scroll to bottom after user message
   await nextTick()
   scrollToBottom()
 
-  // Show typing indicator
   isTyping.value = true
 
-  // Simulate agent response (replace with actual API call)
   setTimeout(() => {
     isTyping.value = false
     messages.value.push({
       id: Date.now(),
       type: 'agent',
-      content: `I understand you're asking about "${userMessage}". Let me help you with that...`,
+      content: `我理解你在问"${userMessage}"。让我来帮你解答...`,
       timestamp: new Date()
     })
     
-    // Scroll to bottom after agent response
     nextTick(() => {
       scrollToBottom()
     })
@@ -90,7 +85,6 @@ onMounted(() => {
 
 <template>
   <div class="fixed bottom-8 right-8 z-50">
-    <!-- Chat Toggle Button -->
     <button
       @click="toggleChat"
       class="neumorphic w-16 h-16 rounded-full flex items-center justify-center text-2xl hover:scale-110 transition-all duration-300 bg-gradient-to-r from-brand-orange to-brand-mint text-white shadow-lg hover:shadow-xl"
@@ -99,18 +93,15 @@ onMounted(() => {
       {{ isOpen ? '×' : '💬' }}
     </button>
 
-    <!-- Chat Window -->
     <div
       v-show="isOpen"
       class="absolute bottom-20 right-0 w-96 neumorphic rounded-3xl overflow-hidden transform transition-all duration-300 bg-white/90 dark:bg-brand-blue/90 backdrop-blur-xl"
     >
-      <!-- Header -->
       <div class="p-4 bg-gradient-to-r from-brand-orange to-brand-mint text-white">
         <h3 class="text-lg font-semibold">学习助手</h3>
         <p class="text-sm opacity-80">随时为你解答问题</p>
       </div>
 
-      <!-- Messages Container -->
       <div
         ref="messageContainer"
         class="h-96 overflow-y-auto p-4 space-y-4 custom-scrollbar"
@@ -134,7 +125,6 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Typing Indicator -->
         <div v-if="isTyping" class="flex justify-start">
           <div class="bg-white/50 dark:bg-brand-blue/50 backdrop-blur-sm p-3 rounded-2xl rounded-bl-sm shadow-sm">
             <div class="flex gap-1">
@@ -146,7 +136,6 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Input Area -->
       <div class="p-4 bg-white/50 dark:bg-brand-blue/50 backdrop-blur-sm border-t border-brand-orange/10">
         <div class="flex gap-2">
           <textarea

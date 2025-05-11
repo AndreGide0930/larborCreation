@@ -18,6 +18,16 @@ onMounted(() => {
 
 <template>
   <div class="min-h-screen bg-brand-gray dark:bg-brand-blue">
+    <div class="fixed top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-50">
+      <img 
+        src="https://api.iconify.design/material-symbols:assistant-rounded.png?color=%23FF6B6B" 
+        alt="Secretary Logo"
+        class="w-8 h-8"
+      />
+      <h1 class="text-xl font-bold bg-gradient-to-r from-brand-orange to-brand-mint bg-clip-text text-transparent">
+        Secretary个人学习秘书
+      </h1>
+    </div>
     <Navigation />
     <RouterView v-slot="{ Component }">
       <transition name="page-transition" mode="out-in">
