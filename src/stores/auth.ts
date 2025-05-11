@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { supabase } from '../lib/supabase'
+import axios from 'axios'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
@@ -9,7 +9,7 @@ export const useAuthStore = defineStore('auth', () => {
   const verificationTimer = ref(0)
   const canResendCode = ref(true)
 
-  const isAuthenticated = computed(() => !!user.value)
+  const isAuthenticated = computed(() => !!localStorage.getItem('token'))
 
   const startResendTimer = () => {
     verificationTimer.value = 60
@@ -28,17 +28,39 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = true
       error.value = ''
 
-      const { error: signInError } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`
-        }
+      const response = await axios.post('http://localhost:8080/auth/sendCode', { email })
+      
+      if (response.data.success) {
+        startResendTimer()
+        return { success: true }
+      }
+
+      throw new Error(response.data.message || 'Failed to send verification code')
+    } catch (e: any) {
+      error.value = e.message
+      return { success: false, error: e.message }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const verifyCode = async (email: string, code: string) => {
+    try {
+      loading.value = true
+      error.value = ''
+
+      const response = await axios.post('http://localhost:8080/auth/verifyCode', { 
+        email, 
+        code 
       })
 
-      if (signInError) throw signInError
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token)
+        user.value = response.data.user
+        return { success: true }
+      }
 
-      startResendTimer()
-      return { success: true }
+      throw new Error('Verification failed')
     } catch (e: any) {
       error.value = e.message
       return { success: false, error: e.message }
@@ -51,7 +73,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       loading.value = true
       error.value = ''
-      await supabase.auth.signOut()
+      localStorage.removeItem('token')
       user.value = null
     } catch (e: any) {
       error.value = e.message
@@ -65,14 +87,18 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = true
       error.value = ''
 
-      const { data, error: updateError } = await supabase.auth.updateUser({
-        data: updates
+      const response = await axios.put('http://localhost:8080/auth/profile', updates, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
       })
 
-      if (updateError) throw updateError
+      if (response.data.success) {
+        user.value = response.data.user
+        return { success: true }
+      }
 
-      user.value = data.user
-      return { success: true }
+      throw new Error('Failed to update profile')
     } catch (e: any) {
       error.value = e.message
       return { success: false, error: e.message }
@@ -81,10 +107,26 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // Initialize user from token
+  const initializeAuth = async () => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      try {
+        const response = await axios.get('http://localhost:8080/auth/me', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        })
+        user.value = response.data.user
+      } catch (e) {
+        localStorage.removeItem('token')
+        user.value = null
+      }
+    }
+  }
+
   // Initialize auth state
-  supabase.auth.onAuthStateChange((event, session) => {
-    user.value = session?.user || null
-  })
+  initializeAuth()
 
   return {
     user,
@@ -94,6 +136,7 @@ export const useAuthStore = defineStore('auth', () => {
     canResendCode,
     isAuthenticated,
     signInWithOTP,
+    verifyCode,
     signOut,
     updateProfile
   }
