@@ -8,7 +8,7 @@ const messages = ref<Message[]>([
   {
     id: 1,
     type: 'agent',
-    content: '👋 Hi! I\'m your learning assistant. How can I help you today?',
+    content: '👋 你好！我是你的学习助手。有什么我可以帮你的吗？',
     timestamp: new Date()
   }
 ])
@@ -106,8 +106,8 @@ onMounted(() => {
     >
       <!-- Header -->
       <div class="p-4 bg-gradient-to-r from-brand-orange to-brand-mint text-white">
-        <h3 class="text-lg font-semibold">Learning Assistant</h3>
-        <p class="text-sm opacity-80">Always here to help</p>
+        <h3 class="text-lg font-semibold">学习助手</h3>
+        <p class="text-sm opacity-80">随时为你解答问题</p>
       </div>
 
       <!-- Messages Container -->
@@ -129,7 +129,7 @@ onMounted(() => {
           >
             <p class="text-sm">{{ message.content }}</p>
             <span class="text-xs opacity-70 mt-1 block">
-              {{ new Date(message.timestamp).toLocaleTimeString() }}
+              {{ new Date(message.timestamp).toLocaleTimeString('zh-CN') }}
             </span>
           </div>
         </div>
@@ -152,7 +152,7 @@ onMounted(() => {
           <textarea
             v-model="inputMessage"
             @keydown="handleKeyDown"
-            placeholder="Type your message..."
+            placeholder="输入你的问题..."
             class="flex-1 bg-white/50 dark:bg-brand-blue/50 backdrop-blur-sm p-2 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-orange/50 text-sm h-10 custom-scrollbar"
             rows="1"
           ></textarea>
@@ -160,7 +160,7 @@ onMounted(() => {
             @click="sendMessage"
             class="px-4 rounded-xl bg-gradient-to-r from-brand-orange to-brand-mint text-white hover:opacity-90 transition-opacity"
           >
-            Send
+            发送
           </button>
         </div>
       </div>
