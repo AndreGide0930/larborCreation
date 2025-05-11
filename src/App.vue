@@ -16,7 +16,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen">
+  <div class="min-h-screen bg-brand-gray dark:bg-brand-blue">
     <Navigation />
     <RouterView v-slot="{ Component }">
       <transition name="page-transition" mode="out-in">

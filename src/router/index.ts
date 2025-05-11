@@ -12,61 +12,41 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
-      path: '/login',
-      name: 'login',
-      component: Login,
-      meta: { requiresGuest: true }
-    },
-    {
-      path: '/register',
-      name: 'register',
-      component: Register,
-      meta: { requiresGuest: true }
-    },
-    {
       path: '/',
       name: 'portfolio',
-      component: Portfolio,
-      meta: { requiresAuth: true }
+      component: Portfolio
     },
     {
       path: '/tasks',
       name: 'tasks',
-      component: Tasks,
-      meta: { requiresAuth: true }
+      component: Tasks
     },
     {
       path: '/schedule',
       name: 'schedule',
-      component: Schedule,
-      meta: { requiresAuth: true }
+      component: Schedule
     },
     {
       path: '/pomodoro',
       name: 'pomodoro',
-      component: Pomodoro,
-      meta: { requiresAuth: true }
+      component: Pomodoro
     },
     {
       path: '/profile',
       name: 'profile',
-      component: Profile,
-      meta: { requiresAuth: true }
+      component: Profile
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: Login
+    },
+    {
+      path: '/register',
+      name: 'register',
+      component: Register
     }
   ]
-})
-
-router.beforeEach(async (to, from, next) => {
-  const authStore = useAuthStore()
-  await authStore.checkAuth()
-
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    next('/login')
-  } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
-    next('/')
-  } else {
-    next()
-  }
 })
 
 export default router
