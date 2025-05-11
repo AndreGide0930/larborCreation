@@ -36,11 +36,11 @@ const router = useRouter()
 const userInfo = ref(JSON.parse(localStorage.getItem('userInfo') || '{}'))
 
 const priorityLabels = {
-  1: 'Very Low',
-  2: 'Low',
-  3: 'Medium',
-  4: 'High',
-  5: 'Very High'
+  1: '非常低',
+  2: '低',
+  3: '中等',
+  4: '高',
+  5: '非常高'
 }
 
 const priorityColors = {
@@ -51,18 +51,16 @@ const priorityColors = {
   5: 'bg-red-100 text-red-600'
 }
 
-// Fetch projects from the server
 const fetchProjects = async () => {
   loading.value = true
   error.value = ''
   
   try {
-    const data = await request('/api/readAllWorks')
+    const data = await request('/api/readAllWork')
     projects.value = data
   } catch (err: unknown) {
     if (err instanceof Error) {
       error.value = err.message
-      // 如果是未登录错误，不要重试
       if (error.value.includes('未登录')) {
         return
       }
@@ -104,7 +102,6 @@ const addProject = () => {
   
   projects.value.unshift(projectToAdd)
   
-  // Reset form
   newProject.value = {
     id: 0,
     name: '',
@@ -129,13 +126,11 @@ const handleLogout = () => {
 
 <template>
   <div class="container mx-auto px-4 py-8">
-    <!-- 顶部导航栏 -->
     <div class="flex justify-between items-center mb-8">
       <h1 class="text-4xl bg-gradient-to-r from-brand-orange to-brand-mint bg-clip-text text-transparent">
-        My Portfolio
+        我的作品集
       </h1>
       
-      <!-- 用户信息和退出按钮 -->
       <div class="flex items-center gap-4">
         <div class="text-sm text-brand-blue/60 dark:text-white/60">
           {{ userInfo.username || userInfo.email }}
@@ -149,17 +144,14 @@ const handleLogout = () => {
       </div>
     </div>
 
-    <!-- 加载状态 -->
     <div v-if="loading" class="text-center py-4">
       加载中...
     </div>
     
-    <!-- 错误提示 -->
     <div v-if="error" class="text-red-500 text-center py-4">
       {{ error }}
     </div>
 
-    <!-- Upload Button -->
     <button 
       @click="showUploadForm = true"
       class="neumorphic fixed right-8 top-8 p-4 rounded-full hover:scale-105 transition-transform"
@@ -167,18 +159,16 @@ const handleLogout = () => {
       <span class="text-2xl">+</span>
     </button>
 
-    <!-- Filter Section -->
     <div class="neumorphic p-4 mb-8 rounded-lg">
       <div class="flex gap-4">
         <input 
           type="text" 
-          placeholder="Search..." 
+          placeholder="搜索..." 
           class="glass p-2 rounded-lg flex-1"
         >
       </div>
     </div>
 
-    <!-- Projects Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <div 
         v-for="project in projects" 
@@ -198,17 +188,16 @@ const handleLogout = () => {
           </div>
           <div class="flex gap-2 mb-2">
             <span class="glass px-2 py-1 rounded-full text-sm">{{ project.type }}</span>
-            <span class="glass px-2 py-1 rounded-full text-sm">Weight: {{ project.cweight }}</span>
+            <span class="glass px-2 py-1 rounded-full text-sm">权重: {{ project.cweight }}</span>
           </div>
           <p v-if="project.description" class="mt-2 text-sm opacity-75">{{ project.description }}</p>
           <div class="mt-2 text-xs text-brand-blue/60 dark:text-white/60">
-            Updated: {{ new Date(project.updateTime).toLocaleDateString() }}
+            更新时间: {{ new Date(project.updateTime).toLocaleDateString() }}
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Upload Form Modal -->
     <div 
       v-if="showUploadForm"
       class="fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm"
@@ -218,11 +207,11 @@ const handleLogout = () => {
         @submit.prevent="addProject"
         class="neumorphic p-6 rounded-lg w-full max-w-md"
       >
-        <h2 class="text-2xl mb-6 bg-gradient-to-r from-brand-orange to-brand-mint bg-clip-text text-transparent">Add New Project</h2>
+        <h2 class="text-2xl mb-6 bg-gradient-to-r from-brand-orange to-brand-mint bg-clip-text text-transparent">添加新作品</h2>
         
         <div class="space-y-4">
           <div>
-            <label class="block mb-1">Project Name</label>
+            <label class="block mb-1">作品名称</label>
             <input 
               v-model="newProject.name"
               type="text"
@@ -232,20 +221,20 @@ const handleLogout = () => {
           </div>
 
           <div>
-            <label class="block mb-1">Type</label>
+            <label class="block mb-1">类型</label>
             <select 
               v-model="newProject.type"
               class="glass w-full p-2 rounded-lg"
             >
-              <option value="notes">Notes</option>
-              <option value="assignment">Assignment</option>
-              <option value="project">Project</option>
-              <option value="research">Research</option>
+              <option value="notes">笔记</option>
+              <option value="assignment">作业</option>
+              <option value="project">项目</option>
+              <option value="research">研究</option>
             </select>
           </div>
 
           <div>
-            <label class="block mb-1">Priority Level</label>
+            <label class="block mb-1">优先级</label>
             <div class="flex gap-2">
               <label 
                 v-for="n in 5" 
@@ -276,7 +265,7 @@ const handleLogout = () => {
           </div>
 
           <div>
-            <label class="block mb-1">Weight</label>
+            <label class="block mb-1">权重</label>
             <input 
               v-model="newProject.cweight"
               type="number"
@@ -287,7 +276,7 @@ const handleLogout = () => {
           </div>
 
           <div>
-            <label class="block mb-1">Description</label>
+            <label class="block mb-1">描述</label>
             <textarea 
               v-model="newProject.description"
               rows="3"
@@ -296,7 +285,7 @@ const handleLogout = () => {
           </div>
 
           <div>
-            <label class="block mb-1">Cover Image</label>
+            <label class="block mb-1">封面图片</label>
             <input 
               type="file"
               accept="image/*"
@@ -306,7 +295,7 @@ const handleLogout = () => {
             <div v-if="newProject.coverImage" class="mt-2">
               <img 
                 :src="newProject.coverImage" 
-                alt="Preview" 
+                alt="预览" 
                 class="w-full h-32 object-cover rounded-lg"
               >
             </div>
@@ -318,14 +307,14 @@ const handleLogout = () => {
             type="submit"
             class="glass px-6 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors flex-1"
           >
-            Add Project
+            添加作品
           </button>
           <button 
             type="button"
             @click="showUploadForm = false"
             class="glass px-6 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
           >
-            Cancel
+            取消
           </button>
         </div>
       </form>
