@@ -1,5 +1,5 @@
 // API基础URL
-const BASE_URL = 'http://localhost:8080'
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
 
 // 创建一个通用的请求函数
 export const request = async (url: string, options: RequestInit = {}) => {
@@ -91,42 +91,4 @@ export const request = async (url: string, options: RequestInit = {}) => {
     }
     throw new Error('请求失败')
   }
-}
-
-// POST请求
-export const post = (url: string, data: any, options: RequestInit = {}) => {
-  return request(url, {
-    ...options,
-    method: 'POST',
-    body: data ? JSON.stringify(data) : null,
-    headers: {
-      'Content-Type': data ? 'application/json' : 'application/x-www-form-urlencoded',
-      ...options.headers
-    }
-  })
-}
-
-// GET请求
-export const get = (url: string, options: RequestInit = {}) => {
-  return request(url, {
-    ...options,
-    method: 'GET'
-  })
-}
-
-// PUT请求
-export const put = (url: string, data: any, options: RequestInit = {}) => {
-  return request(url, {
-    ...options,
-    method: 'PUT',
-    body: JSON.stringify(data)
-  })
-}
-
-// DELETE请求
-export const del = (url: string, options: RequestInit = {}) => {
-  return request(url, {
-    ...options,
-    method: 'DELETE'
-  })
 }
