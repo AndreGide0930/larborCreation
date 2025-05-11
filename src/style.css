@@ -12,9 +12,14 @@
 }
 
 body {
-  @apply font-opensans bg-brand-gray dark:bg-brand-blue text-brand-blue dark:text-white;
+  @apply font-opensans text-brand-blue dark:text-white;
   margin: 0;
   min-height: 100vh;
+  background: linear-gradient(135deg, var(--brand-gray) 0%, #ffffff 100%);
+}
+
+.dark body {
+  background: linear-gradient(135deg, var(--brand-blue) 0%, #1a2632 100%);
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -22,10 +27,16 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .neumorphic {
-  @apply bg-white dark:bg-brand-blue/50;
+  @apply bg-white/90 dark:bg-brand-blue/90 backdrop-blur-xl;
   box-shadow: 
     20px 20px 60px rgba(0, 0, 0, 0.05),
     -20px -20px 60px rgba(255, 255, 255, 0.8);
+}
+
+.dark .neumorphic {
+  box-shadow: 
+    20px 20px 60px rgba(0, 0, 0, 0.2),
+    -20px -20px 60px rgba(255, 255, 255, 0.05);
 }
 
 .glass {
@@ -41,3 +52,4 @@ h1, h2, h3, h4, h5, h6 {
 .page-transition-leave-to {
   opacity: 0;
 }
+</style>
