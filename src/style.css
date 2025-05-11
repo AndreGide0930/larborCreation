@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Open+Sans:wght@400;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-blue: #2A3B4D;
+  --brand-orange: #FF6B6B;
+  --brand-gray: #F5F7FA;
+  --brand-mint: #4DB6AC;
+}
+
+body {
+  @apply font-opensans bg-brand-gray dark:bg-brand-blue text-brand-blue dark:text-white;
+  margin: 0;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  @apply font-montserrat font-bold;
+}
+
+.neumorphic {
+  @apply bg-white dark:bg-brand-blue/50;
+  box-shadow: 
+    20px 20px 60px rgba(0, 0, 0, 0.05),
+    -20px -20px 60px rgba(255, 255, 255, 0.8);
+}
+
+.glass {
+  @apply bg-white/30 dark:bg-brand-blue/30 backdrop-blur-lg;
+}
+
+.page-transition-enter-active,
+.page-transition-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.page-transition-enter-from,
+.page-transition-leave-to {
+  opacity: 0;
+}
