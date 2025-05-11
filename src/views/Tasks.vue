@@ -4,17 +4,6 @@ import draggable from 'vuedraggable'
 import { useTimerStore } from '../stores/timer'
 import axios from 'axios'
 
-// Task data structure
-interface Task {
-  id: number
-  title: string
-  urgent: boolean
-  important: boolean
-  dueDate: string
-  completed: boolean
-  priority: number
-}
-
 interface TodoItem {
   pkCreation: number
   createTime: string
@@ -30,21 +19,19 @@ interface TodoItem {
 const timerStore = useTimerStore()
 
 // Task lists for each quadrant
-const urgentImportant = ref<Task[]>([])
-const importantNotUrgent = ref<Task[]>([])
-const urgentNotImportant = ref<Task[]>([])
-const notUrgentNotImportant = ref<Task[]>([])
+const urgentImportant = ref<TodoItem[]>([])
+const importantNotUrgent = ref<TodoItem[]>([])
+const urgentNotImportant = ref<TodoItem[]>([])
+const notUrgentNotImportant = ref<TodoItem[]>([])
 
 // New task form
 const showNewTaskForm = ref(false)
-const newTask = ref<Task>({
-  id: 0,
-  title: '',
-  urgent: false,
-  important: false,
-  dueDate: new Date().toISOString().split('T')[0],
-  completed: false,
-  priority: 3
+const newTask = ref({
+  cname: '',
+  cpriority: 3,
+  ctype: 'TODO',
+  cweight: 0,
+  csynopsis: ''
 })
 
 const fetchTodos = async () => {
@@ -60,30 +47,19 @@ const fetchTodos = async () => {
 
     // Sort todos into quadrants based on priority
     todos.forEach(todo => {
-      const task: Task = {
-        id: todo.pkCreation,
-        title: todo.cname || '未命名任务',
-        urgent: todo.cpriority >= 4,
-        important: todo.cpriority >= 4,
-        dueDate: new Date(todo.createTime).toISOString().split('T')[0],
-        completed: false,
-        priority: todo.cpriority
-      }
-
-      // Distribute tasks based on priority
       switch (todo.cpriority) {
         case 5:
-          urgentImportant.value.push(task)
+          urgentImportant.value.push(todo)
           break
         case 4:
-          importantNotUrgent.value.push(task)
+          importantNotUrgent.value.push(todo)
           break
         case 2:
         case 3:
-          urgentNotImportant.value.push(task)
+          urgentNotImportant.value.push(todo)
           break
         case 1:
-          notUrgentNotImportant.value.push(task)
+          notUrgentNotImportant.value.push(todo)
           break
       }
     })
@@ -97,43 +73,21 @@ onMounted(() => {
 })
 
 const addTask = () => {
-  const taskToAdd = {
-    ...newTask.value,
-    id: Date.now()
-  }
-  
-  // Add task to appropriate quadrant based on priority
-  if (taskToAdd.priority === 5) {
-    urgentImportant.value.push(taskToAdd)
-  } else if (taskToAdd.priority === 4) {
-    importantNotUrgent.value.push(taskToAdd)
-  } else if (taskToAdd.priority === 2 || taskToAdd.priority === 3) {
-    urgentNotImportant.value.push(taskToAdd)
-  } else {
-    notUrgentNotImportant.value.push(taskToAdd)
-  }
-  
   // Reset form
   newTask.value = {
-    id: 0,
-    title: '',
-    urgent: false,
-    important: false,
-    dueDate: new Date().toISOString().split('T')[0],
-    completed: false,
-    priority: 3
+    cname: '',
+    cpriority: 3,
+    ctype: 'TODO',
+    cweight: 0,
+    csynopsis: ''
   }
   showNewTaskForm.value = false
 }
 
-const toggleTaskComplete = (task: Task) => {
-  task.completed = !task.completed
-}
-
-const startFocusMode = (task: Task) => {
+const startFocusMode = (task: TodoItem) => {
   timerStore.startTimer({
-    id: task.id,
-    title: task.title
+    id: task.pkCreation,
+    title: task.cname
   })
 }
 </script>
@@ -181,26 +135,16 @@ const startFocusMode = (task: Task) => {
           <draggable 
             v-model="urgentImportant"
             :group="{ name: 'tasks' }"
-            item-key="id"
+            item-key="pkCreation"
             class="space-y-4 min-h-[300px]"
           >
             <template #item="{ element: task }">
-              <div 
-                class="glass p-4 rounded-xl cursor-move hover:shadow-lg hover:scale-102 transition-all duration-200"
-                :class="{ 'opacity-50': task.completed }"
-              >
+              <div class="glass p-4 rounded-xl cursor-move hover:shadow-lg hover:scale-102 transition-all duration-200">
                 <div class="flex items-center gap-3">
-                  <input 
-                    type="checkbox"
-                    :checked="task.completed"
-                    @change="() => toggleTaskComplete(task)"
-                    class="w-5 h-5 rounded-lg accent-red-500"
-                  >
                   <div class="flex-1">
-                    <h3 class="font-semibold" :class="{ 'line-through': task.completed }">
-                      {{ task.title }}
-                    </h3>
-                    <p class="text-sm opacity-75 mt-1">截止日期: {{ task.dueDate }}</p>
+                    <h3 class="font-semibold">{{ task.cname }}</h3>
+                    <p class="text-sm opacity-75 mt-1">创建时间: {{ new Date(task.createTime).toLocaleDateString() }}</p>
+                    <p v-if="task.csynopsis" class="text-sm opacity-75 mt-1">{{ task.csynopsis }}</p>
                   </div>
                   <button 
                     @click="startFocusMode(task)"
@@ -226,26 +170,16 @@ const startFocusMode = (task: Task) => {
           <draggable 
             v-model="importantNotUrgent"
             :group="{ name: 'tasks' }"
-            item-key="id"
+            item-key="pkCreation"
             class="space-y-4 min-h-[300px]"
           >
             <template #item="{ element: task }">
-              <div 
-                class="glass p-4 rounded-xl cursor-move hover:shadow-lg hover:scale-102 transition-all duration-200"
-                :class="{ 'opacity-50': task.completed }"
-              >
+              <div class="glass p-4 rounded-xl cursor-move hover:shadow-lg hover:scale-102 transition-all duration-200">
                 <div class="flex items-center gap-3">
-                  <input 
-                    type="checkbox"
-                    :checked="task.completed"
-                    @change="() => toggleTaskComplete(task)"
-                    class="w-5 h-5 rounded-lg accent-yellow-500"
-                  >
                   <div class="flex-1">
-                    <h3 class="font-semibold" :class="{ 'line-through': task.completed }">
-                      {{ task.title }}
-                    </h3>
-                    <p class="text-sm opacity-75 mt-1">截止日期: {{ task.dueDate }}</p>
+                    <h3 class="font-semibold">{{ task.cname }}</h3>
+                    <p class="text-sm opacity-75 mt-1">创建时间: {{ new Date(task.createTime).toLocaleDateString() }}</p>
+                    <p v-if="task.csynopsis" class="text-sm opacity-75 mt-1">{{ task.csynopsis }}</p>
                   </div>
                   <button 
                     @click="startFocusMode(task)"
@@ -271,26 +205,16 @@ const startFocusMode = (task: Task) => {
           <draggable 
             v-model="urgentNotImportant"
             :group="{ name: 'tasks' }"
-            item-key="id"
+            item-key="pkCreation"
             class="space-y-4 min-h-[300px]"
           >
             <template #item="{ element: task }">
-              <div 
-                class="glass p-4 rounded-xl cursor-move hover:shadow-lg hover:scale-102 transition-all duration-200"
-                :class="{ 'opacity-50': task.completed }"
-              >
+              <div class="glass p-4 rounded-xl cursor-move hover:shadow-lg hover:scale-102 transition-all duration-200">
                 <div class="flex items-center gap-3">
-                  <input 
-                    type="checkbox"
-                    :checked="task.completed"
-                    @change="() => toggleTaskComplete(task)"
-                    class="w-5 h-5 rounded-lg accent-blue-500"
-                  >
                   <div class="flex-1">
-                    <h3 class="font-semibold" :class="{ 'line-through': task.completed }">
-                      {{ task.title }}
-                    </h3>
-                    <p class="text-sm opacity-75 mt-1">截止日期: {{ task.dueDate }}</p>
+                    <h3 class="font-semibold">{{ task.cname }}</h3>
+                    <p class="text-sm opacity-75 mt-1">创建时间: {{ new Date(task.createTime).toLocaleDateString() }}</p>
+                    <p v-if="task.csynopsis" class="text-sm opacity-75 mt-1">{{ task.csynopsis }}</p>
                   </div>
                   <button 
                     @click="startFocusMode(task)"
@@ -316,26 +240,16 @@ const startFocusMode = (task: Task) => {
           <draggable 
             v-model="notUrgentNotImportant"
             :group="{ name: 'tasks' }"
-            item-key="id"
+            item-key="pkCreation"
             class="space-y-4 min-h-[300px]"
           >
             <template #item="{ element: task }">
-              <div 
-                class="glass p-4 rounded-xl cursor-move hover:shadow-lg hover:scale-102 transition-all duration-200"
-                :class="{ 'opacity-50': task.completed }"
-              >
+              <div class="glass p-4 rounded-xl cursor-move hover:shadow-lg hover:scale-102 transition-all duration-200">
                 <div class="flex items-center gap-3">
-                  <input 
-                    type="checkbox"
-                    :checked="task.completed"
-                    @change="() => toggleTaskComplete(task)"
-                    class="w-5 h-5 rounded-lg accent-gray-500"
-                  >
                   <div class="flex-1">
-                    <h3 class="font-semibold" :class="{ 'line-through': task.completed }">
-                      {{ task.title }}
-                    </h3>
-                    <p class="text-sm opacity-75 mt-1">截止日期: {{ task.dueDate }}</p>
+                    <h3 class="font-semibold">{{ task.cname }}</h3>
+                    <p class="text-sm opacity-75 mt-1">创建时间: {{ new Date(task.createTime).toLocaleDateString() }}</p>
+                    <p v-if="task.csynopsis" class="text-sm opacity-75 mt-1">{{ task.csynopsis }}</p>
                   </div>
                   <button 
                     @click="startFocusMode(task)"
@@ -368,7 +282,7 @@ const startFocusMode = (task: Task) => {
           <div>
             <label class="block mb-2 font-semibold">标题</label>
             <input 
-              v-model="newTask.title"
+              v-model="newTask.cname"
               type="text"
               required
               class="glass w-full p-3 rounded-xl"
@@ -377,19 +291,9 @@ const startFocusMode = (task: Task) => {
           </div>
 
           <div>
-            <label class="block mb-2 font-semibold">截止日期</label>
-            <input 
-              v-model="newTask.dueDate"
-              type="date"
-              required
-              class="glass w-full p-3 rounded-xl"
-            >
-          </div>
-
-          <div>
             <label class="block mb-2 font-semibold">优先级</label>
             <select 
-              v-model="newTask.priority"
+              v-model="newTask.cpriority"
               class="glass w-full p-3 rounded-xl"
             >
               <option value="5">最高优先级（重要且紧急）</option>
@@ -398,6 +302,28 @@ const startFocusMode = (task: Task) => {
               <option value="2">低优先级（不重要但紧急）</option>
               <option value="1">最低优先级（不重要不紧急）</option>
             </select>
+          </div>
+
+          <div>
+            <label class="block mb-2 font-semibold">描述</label>
+            <textarea 
+              v-model="newTask.csynopsis"
+              rows="3"
+              class="glass w-full p-3 rounded-xl"
+              placeholder="任务描述（可选）"
+            ></textarea>
+          </div>
+
+          <div>
+            <label class="block mb-2 font-semibold">权重</label>
+            <input 
+              v-model="newTask.cweight"
+              type="number"
+              min="0"
+              step="0.1"
+              class="glass w-full p-3 rounded-xl"
+              placeholder="任务权重"
+            >
           </div>
         </div>
 
