@@ -57,7 +57,7 @@ const fetchProjects = async () => {
   error.value = ''
   
   try {
-    const data = await request('/api/readAllWorks')
+    const data = await request('/readAllWorks')
     projects.value = data
   } catch (err: unknown) {
     if (err instanceof Error) {

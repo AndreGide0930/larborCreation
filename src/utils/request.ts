@@ -11,7 +11,7 @@ export const request = async (url: string, options: RequestInit = {}) => {
     const response = await fetch(fullUrl, {
       ...options,
       headers: {
-        'Content-Type': (options.headers as Record<string, string>)?.[`Content-Type`] || 'application/json',
+        'Content-Type': 'application/json',
         ...options.headers
       }
     })
@@ -26,7 +26,15 @@ export const request = async (url: string, options: RequestInit = {}) => {
 
     if (contentType?.includes('application/json')) {
       try {
-        return JSON.parse(responseText)
+        const data = JSON.parse(responseText)
+        // 如果是验证码验证的响应，保存token和用户信息
+        if (url.includes('verifyCode') && data.token && data.userInfo) {
+          localStorage.setItem('token', data.token)
+          localStorage.setItem('userInfo', JSON.stringify(data.userInfo))
+          // 验证成功后跳转到首页
+          window.location.href = '/'
+        }
+        return data
       } catch {
         return responseText
       }
@@ -41,17 +49,18 @@ export const request = async (url: string, options: RequestInit = {}) => {
     throw new Error('未登录')
   }
 
-  // 合并默认headers和传入的headers
-  const headers = {
+  // 只保留后端允许的请求头
+  const headers: HeadersInit = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
-    ...options.headers
+    'Authorization': `Bearer ${token}`
   }
 
-  // 合并选项
+  // 合并选项，但不包含其他请求头
   const finalOptions = {
     ...options,
-    headers
+    headers,
+    // 确保包含credentials
+    credentials: 'include' as RequestCredentials
   }
 
   try {
