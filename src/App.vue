@@ -3,6 +3,7 @@ import { useColorMode } from '@vueuse/core'
 import { onMounted } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import Navigation from './components/Navigation.vue'
+import ChatWindow from './components/ChatWindow.vue'
 
 const colorMode = useColorMode()
 const route = useRoute()
@@ -23,5 +24,6 @@ onMounted(() => {
         <component :is="Component" :key="route.path" />
       </transition>
     </RouterView>
+    <ChatWindow />
   </div>
 </template>
