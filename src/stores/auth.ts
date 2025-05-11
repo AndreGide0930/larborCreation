@@ -1,21 +1,17 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { authService } from '../services/auth'
-
-interface User {
-  email: string;
-}
+import { supabase } from '../lib/supabase'
 
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref<User | null>(null)
+  const user = ref(null)
   const loading = ref(false)
   const error = ref('')
   const verificationTimer = ref(0)
   const canResendCode = ref(true)
 
-  const isAuthenticated = computed(() => authService.isAuthenticated())
+  const isAuthenticated = computed(() => !!user.value)
 
-  const startVerificationTimer = () => {
+  const startResendTimer = () => {
     verificationTimer.value = 60
     canResendCode.value = false
     const timer = setInterval(() => {
@@ -32,62 +28,17 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = true
       error.value = ''
 
-      const result = await authService.sendVerificationCode(email)
-      
-      if (result.success) {
-        startVerificationTimer()
-      } else {
-        error.value = result.error || '发送验证码失败'
-      }
-
-      return { success: result.success }
-    } catch (e: any) {
-      error.value = e.message
-      return { success: false, error: e.message }
-    } finally {
-      loading.value = false
-    }
-  }
-
-  const verifyOTP = async (email: string, code: string) => {
-    try {
-      loading.value = true
-      error.value = ''
-
-      const result = await authService.verifyCode(email, code)
-      
-      if (result.success && result.data?.user) {
-        user.value = result.data.user
-      } else {
-        error.value = result.error || '验证失败'
-      }
-
-      return { success: result.success }
-    } catch (e: any) {
-      error.value = e.message
-      return { success: false, error: e.message }
-    } finally {
-      loading.value = false
-    }
-  }
-
-  const updateProfile = async (updates: Partial<User>) => {
-    try {
-      loading.value = true
-      error.value = ''
-
-      const result = await authService.updateProfile(updates)
-      
-      if (result.success) {
-        const storedUser = localStorage.getItem('user')
-        if (storedUser) {
-          user.value = JSON.parse(storedUser)
+      const { error: signInError } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`
         }
-      } else {
-        error.value = result.error || '更新失败'
-      }
+      })
 
-      return { success: result.success }
+      if (signInError) throw signInError
+
+      startResendTimer()
+      return { success: true }
     } catch (e: any) {
       error.value = e.message
       return { success: false, error: e.message }
@@ -100,8 +51,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       loading.value = true
       error.value = ''
-      
-      authService.logout()
+      await supabase.auth.signOut()
       user.value = null
     } catch (e: any) {
       error.value = e.message
@@ -110,32 +60,41 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const checkAuth = async () => {
+  const updateProfile = async (updates: any) => {
     try {
       loading.value = true
-      
-      const storedUser = localStorage.getItem('user')
-      if (storedUser) {
-        user.value = JSON.parse(storedUser)
-      }
+      error.value = ''
+
+      const { data, error: updateError } = await supabase.auth.updateUser({
+        data: updates
+      })
+
+      if (updateError) throw updateError
+
+      user.value = data.user
+      return { success: true }
     } catch (e: any) {
       error.value = e.message
+      return { success: false, error: e.message }
     } finally {
       loading.value = false
     }
   }
 
+  // Initialize auth state
+  supabase.auth.onAuthStateChange((event, session) => {
+    user.value = session?.user || null
+  })
+
   return {
     user,
     loading,
     error,
-    isAuthenticated,
     verificationTimer,
     canResendCode,
+    isAuthenticated,
     signInWithOTP,
-    verifyOTP,
-    updateProfile,
     signOut,
-    checkAuth
+    updateProfile
   }
 })

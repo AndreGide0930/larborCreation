@@ -14,39 +14,70 @@ const router = createRouter({
     {
       path: '/',
       name: 'portfolio',
-      component: Portfolio
+      component: Portfolio,
+      meta: { requiresAuth: true }
     },
     {
       path: '/tasks',
       name: 'tasks',
-      component: Tasks
+      component: Tasks,
+      meta: { requiresAuth: true }
     },
     {
       path: '/schedule',
       name: 'schedule',
-      component: Schedule
+      component: Schedule,
+      meta: { requiresAuth: true }
     },
     {
       path: '/pomodoro',
       name: 'pomodoro',
-      component: Pomodoro
+      component: Pomodoro,
+      meta: { requiresAuth: true }
     },
     {
       path: '/profile',
       name: 'profile',
-      component: Profile
+      component: Profile,
+      meta: { requiresAuth: true }
     },
     {
       path: '/login',
       name: 'login',
-      component: Login
+      component: Login,
+      meta: { guest: true }
     },
     {
       path: '/register',
       name: 'register',
-      component: Register
+      component: Register,
+      meta: { guest: true }
     }
   ]
+})
+
+// Navigation guard
+router.beforeEach((to, from, next) => {
+  const authStore = useAuthStore()
+  
+  if (to.matched.some(record => record.meta.requiresAuth)) {
+    if (!authStore.isAuthenticated) {
+      next({
+        path: '/login',
+        query: { redirect: to.fullPath }
+      })
+    } else {
+      next()
+    }
+  } else if (to.matched.some(record => record.meta.guest)) {
+    if (authStore.isAuthenticated) {
+      next('/')
+    } else {
+      next()
+    }
+  } else {
+    next()
+  }
 })
 
 export default router
