@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { get } from '../utils/request'
+import { request } from '../utils/request'
 
 interface Project {
   id: number
@@ -51,39 +51,13 @@ const priorityColors = {
   5: 'bg-red-100 text-red-600'
 }
 
-const fetchWithRetry = async (url: string, retries = 3): Promise<Project[]> => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      if (!response.ok) {
-        if (response.status === 401) {
-          // 如果未认证，重定向到登录页面
-          router.push('/login')
-          throw new Error('未登录或登录已过期')
-        }
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-      return await response.json()
-    } catch (err) {
-      if (i === retries - 1) throw err
-      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)))
-    }
-  }
-  throw new Error('Failed after retries')
-}
-
 // Fetch projects from the server
 const fetchProjects = async () => {
   loading.value = true
   error.value = ''
   
   try {
-    const data = await get('/api/readAllWorks')
+    const data = await request('/api/readAllWorks')
     projects.value = data
   } catch (err: unknown) {
     if (err instanceof Error) {
