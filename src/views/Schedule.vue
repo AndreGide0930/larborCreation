@@ -54,6 +54,11 @@ const calendarOptions = {
     center: 'title',
     right: 'timeGridDay,timeGridWeek'
   },
+  buttonText: {
+    today: '今天',
+    day: '日',
+    week: '周'
+  },
   editable: true,
   selectable: true,
   selectMirror: true,
@@ -72,7 +77,8 @@ const calendarOptions = {
     minute: '2-digit',
     meridiem: false,
     hour12: false
-  }
+  },
+  locale: 'zh-cn'
 }
 
 const events = computed(() => {
@@ -162,10 +168,10 @@ const getTaskClass = (task: Task) => {
       <!-- Header Section -->
       <div class="text-center">
         <h1 class="text-4xl mb-2 bg-gradient-to-r from-brand-orange to-brand-mint bg-clip-text text-transparent font-montserrat">
-          Schedule Planner
+          日程安排
         </h1>
         <p class="text-brand-blue/60 dark:text-white/60 font-opensans">
-          Plan and organize your tasks efficiently
+          高效规划和组织你的任务
         </p>
       </div>
 
@@ -188,10 +194,10 @@ const getTaskClass = (task: Task) => {
     >
       <div class="neumorphic p-8 rounded-3xl w-full max-w-md bg-white/90 dark:bg-brand-blue/90 backdrop-blur-xl transform transition-all duration-300 scale-100 hover:scale-[1.02]">
         <h2 class="text-2xl font-bold mb-2 bg-gradient-to-r from-brand-orange to-brand-mint bg-clip-text text-transparent">
-          Schedule Task
+          安排任务
         </h2>
         <p class="text-sm mb-6 text-brand-blue/60 dark:text-white/60 font-opensans">
-          {{ dayjs(selectedTimeSlot?.start).format('MMM D, YYYY h:mm A') }}
+          {{ dayjs(selectedTimeSlot?.start).format('YYYY年MM月DD日 HH:mm') }}
         </p>
         
         <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
@@ -208,22 +214,22 @@ const getTaskClass = (task: Task) => {
                 v-if="task.urgent" 
                 class="text-xs px-3 py-1 rounded-full bg-gradient-to-r from-brand-orange/20 to-transparent backdrop-blur-sm"
               >
-                Urgent
+                紧急
               </span>
               <span 
                 v-if="task.important" 
                 class="text-xs px-3 py-1 rounded-full bg-gradient-to-r from-brand-mint/20 to-transparent backdrop-blur-sm"
               >
-                Important
+                重要
               </span>
               <span class="text-xs px-3 py-1 rounded-full bg-brand-blue/10 dark:bg-white/10 backdrop-blur-sm">
-                Due: {{ task.dueDate }}
+                截止: {{ dayjs(task.dueDate).format('MM/DD') }}
               </span>
             </div>
           </div>
 
           <div v-if="availableTasks.length === 0" class="text-center py-8 text-brand-blue/60 dark:text-white/60">
-            No tasks available to schedule
+            暂无可安排的任务
           </div>
         </div>
 
@@ -232,7 +238,7 @@ const getTaskClass = (task: Task) => {
             @click="showTaskSelector = false"
             class="w-full bg-gradient-to-r from-brand-orange to-brand-mint text-white px-6 py-3 rounded-2xl hover:opacity-90 transition-all duration-300 transform hover:scale-[1.02] font-semibold shadow-lg hover:shadow-xl"
           >
-            Close
+            关闭
           </button>
         </div>
       </div>
