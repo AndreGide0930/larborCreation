@@ -1,13 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { supabase } from '../lib/supabase'
+import { request } from '../utils/request'
 
 interface Task {
-  id: string
+  id: number
   title: string
   urgent: boolean
   important: boolean
-  due_date: string
+  dueDate: string
   completed: boolean
 }
 
@@ -23,17 +23,11 @@ export const useTaskStore = defineStore('tasks', () => {
       loading.value = true
       error.value = null
       
-      const { data, error: err } = await supabase
-        .from('tasks')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (err) throw err
-      
+      const data = await request('/api/tasks')
       tasks.value = data
     } catch (e) {
       console.error('Error fetching tasks:', e)
-      error.value = 'Failed to load tasks'
+      error.value = '加载任务失败'
     } finally {
       loading.value = false
     }
@@ -44,34 +38,29 @@ export const useTaskStore = defineStore('tasks', () => {
       loading.value = true
       error.value = null
 
-      const { data, error: err } = await supabase
-        .from('tasks')
-        .insert([task])
-        .select()
-        .single()
-
-      if (err) throw err
+      const data = await request('/api/tasks', {
+        method: 'POST',
+        body: JSON.stringify(task)
+      })
 
       tasks.value.unshift(data)
     } catch (e) {
       console.error('Error adding task:', e)
-      error.value = 'Failed to add task'
+      error.value = '添加任务失败'
     } finally {
       loading.value = false
     }
   }
 
-  const updateTask = async (taskId: string, updates: Partial<Task>) => {
+  const updateTask = async (taskId: number, updates: Partial<Task>) => {
     try {
       loading.value = true
       error.value = null
 
-      const { error: err } = await supabase
-        .from('tasks')
-        .update(updates)
-        .eq('id', taskId)
-
-      if (err) throw err
+      await request(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates)
+      })
 
       const index = tasks.value.findIndex(t => t.id === taskId)
       if (index !== -1) {
@@ -79,28 +68,25 @@ export const useTaskStore = defineStore('tasks', () => {
       }
     } catch (e) {
       console.error('Error updating task:', e)
-      error.value = 'Failed to update task'
+      error.value = '更新任务失败'
     } finally {
       loading.value = false
     }
   }
 
-  const deleteTask = async (taskId: string) => {
+  const deleteTask = async (taskId: number) => {
     try {
       loading.value = true
       error.value = null
 
-      const { error: err } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('id', taskId)
-
-      if (err) throw err
+      await request(`/api/tasks/${taskId}`, {
+        method: 'DELETE'
+      })
 
       tasks.value = tasks.value.filter(t => t.id !== taskId)
     } catch (e) {
       console.error('Error deleting task:', e)
-      error.value = 'Failed to delete task'
+      error.value = '删除任务失败'
     } finally {
       loading.value = false
     }
