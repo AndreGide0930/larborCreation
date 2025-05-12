@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue' // onMounted 保留，以防将来使用
 import { useTaskStore } from '../stores/tasks'
 import { useTimerStore } from '../stores/timer'
 import FullCalendar from '@fullcalendar/vue3'
@@ -7,14 +7,7 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import dayjs from 'dayjs'
-import { request } from '../utils/request'
-
-interface TimeBlock {
-  id: number
-  startTime: string
-  endTime: string
-  tasks: Task[]
-}
+import { request } from '../utils/request' // 假设这是一个有效的请求工具
 
 interface Task {
   id: number
@@ -25,29 +18,21 @@ interface Task {
   completed: boolean
 }
 
-interface CalendarEvent {
-  id: string
-  title: string
-  start: string
-  end: string
-  extendedProps: {
-    taskId?: number
-    urgent?: boolean
-    important?: boolean
-  }
-}
-
 const taskStore = useTaskStore()
 const timerStore = useTimerStore()
 const calendarRef = ref()
 const selectedDate = ref(dayjs().format('YYYY-MM-DD'))
 const showTaskSelector = ref(false)
 const selectedTimeSlot = ref<{ start: string; end: string } | null>(null)
-const showTimeGrid = ref(true)
+
+// 1. 初始化 showTimeGrid 为 false，以便默认显示"开启计划"按钮
+const showTimeGrid = ref(false)
 const isCreatingPlan = ref(false)
 const error = ref('')
 
-const calendarOptions = {
+// calendarOptions 现在是 computed，以确保其响应性，特别是如果内部有动态值
+// 将 events 从 options 中移除，因为我们通过 :events prop 单独传递
+const calendarOptions = computed(() => ({
   plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
   initialView: 'timeGridDay',
   slotMinTime: '06:00:00',
@@ -56,7 +41,7 @@ const calendarOptions = {
   headerToolbar: {
     left: 'prev,next today',
     center: 'title',
-    right: 'timeGridDay,timeGridWeek'
+    right: 'timeGridDay,timeGridWeek' // 保持视图切换选项
   },
   buttonText: {
     today: '今天',
@@ -82,39 +67,56 @@ const calendarOptions = {
     hour12: false
   },
   locale: 'zh-cn',
-  datesSet: handleDatesSet
-}
+  datesSet: handleDatesSet, // 关键回调：当日期或视图变化时
+}));
 
-function handleDatesSet(arg: any) {
-  const currentDate = dayjs(arg.start).format('YYYY-MM-DD')
-  if (currentDate !== selectedDate.value) {
-    selectedDate.value = currentDate
-    showTimeGrid.value = false
+// 2. 调整 handleDatesSet 逻辑
+function handleDatesSet(dateInfo: any) {
+  const newDate = dayjs(dateInfo.start).format('YYYY-MM-DD');
+  console.log(`[handleDatesSet] 日期/视图已设置. 当前视图: ${dateInfo.view.type}, 新日期: ${newDate}, 当前selectedDate: ${selectedDate.value}`);
+  selectedDate.value = newDate;
+
+  // 只要日历视图（特别是 timeGridDay）确定了当前日期，就应该显示"开启计划"按钮
+  // 这包括初始加载和用户导航（上一天/下一天/今天）
+  // 只有当视图类型是 timeGridDay 时，我们才强制显示按钮界面，
+  // 避免在 timeGridWeek 等视图中也尝试显示这个按钮（除非那是期望行为）
+  if (dateInfo.view.type === 'timeGridDay') {
+    console.log('[handleDatesSet] 当前为 timeGridDay 视图，设置 showTimeGrid = false 以显示"开启计划"按钮。');
+    showTimeGrid.value = false;
+  } else {
+    // 如果切换到其他视图（如 timeGridWeek），则可能希望直接显示日历内容
+    // 根据你的需求调整此处的逻辑
+    console.log(`[handleDatesSet] 当前视图为 ${dateInfo.view.type}，设置 showTimeGrid = true。`);
+    showTimeGrid.value = true; 
   }
+  error.value = ''; // 清除可能存在的旧错误信息
 }
 
 async function createPlan() {
-  if (isCreatingPlan.value) return
+  if (isCreatingPlan.value) return;
+
+  console.log('[createPlan] 开始创建计划...');
+  isCreatingPlan.value = true;
+  error.value = '';
 
   try {
-    isCreatingPlan.value = true
-    error.value = ''
-
+    // 模拟 API 请求
     await request('/api/createPlan', {
       method: 'POST',
-      body: JSON.stringify({
-        date: selectedDate.value
-      })
-    })
-
-    showTimeGrid.value = true
+      body: JSON.stringify({ date: selectedDate.value })
+    });
+    // 真实请求成功后
+    console.log('[createPlan] 计划创建成功，设置 showTimeGrid = true 以显示日历网格。');
+    showTimeGrid.value = true;
   } catch (e: any) {
-    error.value = e.message || '创建计划失败，请稍后重试'
+    console.error('[createPlan] 创建计划失败:', e);
+    error.value = e.message || '创建计划失败，请稍后重试';
+    showTimeGrid.value = false; // 创建失败，保持显示"开启计划"按钮界面
     setTimeout(() => {
-      error.value = ''
-    }, 3000)
+      error.value = '';
+    }, 3000);
   } finally {
-    isCreatingPlan.value = false
+    isCreatingPlan.value = false;
   }
 }
 
@@ -122,8 +124,8 @@ const events = computed(() => {
   return taskStore.getAllTasks.map(task => ({
     id: `task-${task.id}`,
     title: task.title,
-    start: `${task.dueDate}T09:00:00`,
-    end: `${task.dueDate}T10:00:00`,
+    start: `${task.dueDate}T09:00:00`, // 示例时间，请根据实际情况调整
+    end: `${task.dueDate}T10:00:00`,   // 示例时间
     backgroundColor: getEventColor(task),
     borderColor: 'transparent',
     textColor: '#ffffff',
@@ -132,77 +134,78 @@ const events = computed(() => {
       urgent: task.urgent,
       important: task.important
     }
-  }))
-})
+  }));
+});
 
 function getEventColor(task: Task): string {
-  if (task.urgent && task.important) return 'rgba(255, 107, 107, 0.9)'
-  if (task.important) return 'rgba(77, 182, 172, 0.9)'
-  if (task.urgent) return 'rgba(255, 183, 77, 0.9)'
-  return 'rgba(144, 164, 174, 0.9)'
+  if (task.urgent && task.important) return 'rgba(255, 107, 107, 0.9)';
+  if (task.important) return 'rgba(77, 182, 172, 0.9)';
+  if (task.urgent) return 'rgba(255, 183, 77, 0.9)';
+  return 'rgba(144, 164, 174, 0.9)';
 }
 
 function handleDateSelect(selectInfo: any) {
+  console.log('[handleDateSelect] 日期已选择:', selectInfo);
   selectedTimeSlot.value = {
     start: selectInfo.startStr,
     end: selectInfo.endStr
-  }
-  showTaskSelector.value = true
+  };
+  showTaskSelector.value = true;
 }
 
 function handleEventClick(clickInfo: any) {
-  const taskId = clickInfo.event.extendedProps.taskId
+  const taskId = clickInfo.event.extendedProps.taskId;
   if (taskId) {
-    const task = taskStore.tasks.find(t => t.id === taskId)
+    const task = taskStore.tasks.find(t => t.id === taskId);
     if (task) {
-      timerStore.startTimer({
-        id: task.id,
-        title: task.title
-      })
+      timerStore.startTimer({ id: task.id, title: task.title });
     }
   }
 }
 
 function handleEventDrop(dropInfo: any) {
-  const taskId = dropInfo.event.extendedProps.taskId
+  const taskId = dropInfo.event.extendedProps.taskId;
   if (taskId) {
-    const newDate = dayjs(dropInfo.event.start).format('YYYY-MM-DD')
-    taskStore.updateTask(taskId, { dueDate: newDate })
+    const newDate = dayjs(dropInfo.event.start).format('YYYY-MM-DD');
+    taskStore.updateTask(taskId, { dueDate: newDate });
+    // 你可能需要调用 calendarRef.value.getApi().refetchEvents() 来刷新事件显示
   }
 }
 
 function handleEventResize(resizeInfo: any) {
-  console.log('Event resized', resizeInfo)
+  console.log('Event resized', resizeInfo);
+  // 根据需要处理事件大小调整逻辑
 }
 
 const availableTasks = computed(() => {
-  return taskStore.getAllTasks.filter(task => !task.completed)
-})
+  return taskStore.getAllTasks.filter(task => !task.completed);
+});
 
 function assignTask(task: Task) {
   if (selectedTimeSlot.value) {
-    const startTime = dayjs(selectedTimeSlot.value.start)
+    const startTime = dayjs(selectedTimeSlot.value.start);
     taskStore.updateTask(task.id, {
       dueDate: startTime.format('YYYY-MM-DD')
-    })
-    showTaskSelector.value = false
-    selectedTimeSlot.value = null
+    });
+    showTaskSelector.value = false;
+    selectedTimeSlot.value = null;
+    // 你可能需要调用 calendarRef.value.getApi().refetchEvents()
   }
 }
 
 const getTaskClass = (task: Task) => {
-  const baseClasses = 'transition-all duration-300 hover:scale-[1.02] hover:shadow-lg'
-  if (task.urgent && task.important) return `${baseClasses} from-brand-orange/20 to-transparent`
-  if (task.important) return `${baseClasses} from-brand-mint/20 to-transparent`
-  if (task.urgent) return `${baseClasses} from-yellow-500/20 to-transparent`
-  return `${baseClasses} from-gray-500/20 to-transparent`
-}
+  const baseClasses = 'transition-all duration-300 hover:scale-[1.02] hover:shadow-lg';
+  if (task.urgent && task.important) return `${baseClasses} from-brand-orange/20 to-transparent`;
+  if (task.important) return `${baseClasses} from-brand-mint/20 to-transparent`;
+  if (task.urgent) return `${baseClasses} from-yellow-500/20 to-transparent`;
+  return `${baseClasses} from-gray-500/20 to-transparent`;
+};
+
 </script>
 
 <template>
   <div class="container mx-auto px-4 py-8">
     <div class="flex flex-col gap-8">
-      <!-- Header Section -->
       <div class="text-center">
         <h1 class="text-4xl mb-2 bg-gradient-to-r from-brand-orange to-brand-mint bg-clip-text text-transparent font-montserrat">
           日程安排
@@ -212,24 +215,29 @@ const getTaskClass = (task: Task) => {
         </p>
       </div>
 
-      <!-- Calendar Section -->
       <div class="neumorphic p-8 rounded-3xl bg-white/90 dark:bg-brand-blue/90 backdrop-blur-xl">
+        <!-- FullCalendar 组件 -->
         <FullCalendar 
           ref="calendarRef"
           :options="calendarOptions"
-          :events="events"
+          :events="events" 
           class="fc-theme-standard calendar-container"
         >
           <template #timeGridDay-body>
-            <div v-if="!showTimeGrid" class="flex items-center justify-center h-[600px]">
+            <div 
+              v-if="!showTimeGrid" 
+              class="flex items-center justify-center h-[600px]"
+              style="position: relative; z-index: 1000; background-color: rgba(0, 128, 0, 0.1);"
+            >
               <div class="text-center">
                 <button 
                   @click="createPlan"
                   :disabled="isCreatingPlan"
                   class="glass px-8 py-4 rounded-xl text-xl hover:bg-brand-orange/10 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  style="position: relative; z-index: 1001;"
                 >
                   <span v-if="isCreatingPlan">创建中...</span>
-                  <span v-else>开启计划</span>
+                  <span v-else>开启计划 ({{ dayjs(selectedDate).format('MM月DD日') }})</span>
                 </button>
                 <p v-if="error" class="mt-4 text-red-500">{{ error }}</p>
               </div>
@@ -239,7 +247,7 @@ const getTaskClass = (task: Task) => {
       </div>
     </div>
 
-    <!-- Task Selector Modal -->
+    <!-- Task Selector Modal (保持不变) -->
     <div 
       v-if="showTaskSelector"
       class="fixed inset-0 bg-black/20 dark:bg-black/40 flex items-center justify-center backdrop-blur-xl transition-all duration-300"
@@ -296,6 +304,8 @@ const getTaskClass = (task: Task) => {
     </div>
   </div>
 </template>
+
+
 
 <style>
 .fc {
