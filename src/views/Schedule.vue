@@ -76,8 +76,8 @@ const calendarOptions = {
   nowIndicator: true,
   slotEventOverlap: false,
   eventTimeFormat: {
-    hour: '2-digit',
-    minute: '2-digit',
+    hour: '2-digit' as '2-digit',
+    minute: '2-digit' as '2-digit',
     meridiem: false,
     hour12: false
   },
