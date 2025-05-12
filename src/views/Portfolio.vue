@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { request } from '../utils/request'
 
-interface Project {
+interface DoneWork {
   id: number
   name: string
   type: string
@@ -11,14 +11,12 @@ interface Project {
   cpriority: number
   createTime: string
   updateTime: string
-  coverImage: string
-  file?: File
   description?: string
 }
 
-const projects = ref<Project[]>([])
+const DoneWorks = ref<DoneWork[]>([])
 const showUploadForm = ref(false)
-const newProject = ref<Project>({
+const newDoneWork = ref<DoneWork>({
   id: 0,
   name: '',
   type: 'notes',
@@ -26,7 +24,6 @@ const newProject = ref<Project>({
   cpriority: 3,
   createTime: new Date().toISOString(),
   updateTime: new Date().toISOString(),
-  coverImage: 'https://picsum.photos/300/200',
   description: ''
 })
 const selectedFile = ref<File | null>(null)
@@ -51,13 +48,13 @@ const priorityColors = {
   5: 'bg-red-100 text-red-600'
 }
 
-const fetchProjects = async () => {
+const fetchDoneWorks = async () => {
   loading.value = true
   error.value = ''
   
   try {
     const data = await request('/readAllWorks')
-    projects.value = data
+    DoneWorks.value = data
   } catch (err: unknown) {
     if (err instanceof Error) {
       error.value = err.message
@@ -67,42 +64,34 @@ const fetchProjects = async () => {
     } else {
       error.value = '加载失败，请稍后重试'
     }
-    console.error('Error fetching projects:', err)
+    console.error('Error fetching DoneWorks:', err)
   } finally {
     loading.value = false
   }
 }
 
 onMounted(() => {
-  fetchProjects()
+  fetchDoneWorks()
 })
 
 const handleFileSelect = (event: Event) => {
   const input = event.target as HTMLInputElement
   if (input.files && input.files[0]) {
     selectedFile.value = input.files[0]
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      if (e.target?.result) {
-        newProject.value.coverImage = e.target.result as string
-      }
-    }
-    reader.readAsDataURL(input.files[0])
   }
 }
 
-const addProject = () => {
-  const projectToAdd: Project = {
-    ...newProject.value,
+const addDoneWork = () => {
+  const DoneWorkToAdd: DoneWork = {
+    ...newDoneWork.value,
     id: Date.now(),
     createTime: new Date().toISOString(),
-    updateTime: new Date().toISOString(),
-    file: selectedFile.value || undefined
+    updateTime: new Date().toISOString()
   }
   
-  projects.value.unshift(projectToAdd)
+  DoneWorks.value.unshift(DoneWorkToAdd)
   
-  newProject.value = {
+  newDoneWork.value = {
     id: 0,
     name: '',
     type: 'notes',
@@ -110,7 +99,6 @@ const addProject = () => {
     cpriority: 3,
     createTime: new Date().toISOString(),
     updateTime: new Date().toISOString(),
-    coverImage: 'https://picsum.photos/300/200',
     description: ''
   }
   selectedFile.value = null
@@ -171,28 +159,27 @@ const handleLogout = () => {
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <div 
-        v-for="project in projects" 
-        :key="project.id"
+        v-for="DoneWork in DoneWorks" 
+        :key="DoneWork.id"
         class="neumorphic rounded-lg overflow-hidden hover:scale-105 transition-transform cursor-pointer"
       >
-        <img :src="project.coverImage" :alt="project.name" class="w-full h-48 object-cover">
         <div class="p-4">
           <div class="flex justify-between items-start mb-2">
-            <h3 class="text-xl">{{ project.name }}</h3>
+            <h3 class="text-xl">{{ DoneWork.name }}</h3>
             <span 
               class="text-sm px-2 py-1 rounded-full"
-              :class="priorityColors[project.cpriority as keyof typeof priorityColors]"
+              :class="priorityColors[DoneWork.cpriority as keyof typeof priorityColors]"
             >
-              {{ priorityLabels[project.cpriority as keyof typeof priorityLabels] }}
+              {{ priorityLabels[DoneWork.cpriority as keyof typeof priorityLabels] }}
             </span>
           </div>
           <div class="flex gap-2 mb-2">
-            <span class="glass px-2 py-1 rounded-full text-sm">{{ project.type }}</span>
-            <span class="glass px-2 py-1 rounded-full text-sm">权重: {{ project.cweight }}</span>
+            <span class="glass px-2 py-1 rounded-full text-sm">{{ DoneWork.type }}</span>
+            <span class="glass px-2 py-1 rounded-full text-sm">权重: {{ DoneWork.cweight }}</span>
           </div>
-          <p v-if="project.description" class="mt-2 text-sm opacity-75">{{ project.description }}</p>
+          <p v-if="DoneWork.description" class="mt-2 text-sm opacity-75">{{ DoneWork.description }}</p>
           <div class="mt-2 text-xs text-brand-blue/60 dark:text-white/60">
-            更新时间: {{ new Date(project.updateTime).toLocaleDateString() }}
+            更新时间: {{ new Date(DoneWork.updateTime).toLocaleDateString() }}
           </div>
         </div>
       </div>
@@ -204,7 +191,7 @@ const handleLogout = () => {
       @click.self="showUploadForm = false"
     >
       <form 
-        @submit.prevent="addProject"
+        @submit.prevent="addDoneWork"
         class="neumorphic p-6 rounded-lg w-full max-w-md"
       >
         <h2 class="text-2xl mb-6 bg-gradient-to-r from-brand-orange to-brand-mint bg-clip-text text-transparent">添加新作品</h2>
@@ -213,7 +200,7 @@ const handleLogout = () => {
           <div>
             <label class="block mb-1">作品名称</label>
             <input 
-              v-model="newProject.name"
+              v-model="newDoneWork.name"
               type="text"
               required
               class="glass w-full p-2 rounded-lg"
@@ -223,12 +210,12 @@ const handleLogout = () => {
           <div>
             <label class="block mb-1">类型</label>
             <select 
-              v-model="newProject.type"
+              v-model="newDoneWork.type"
               class="glass w-full p-2 rounded-lg"
             >
               <option value="notes">笔记</option>
               <option value="assignment">作业</option>
-              <option value="project">项目</option>
+              <option value="DoneWork">项目</option>
               <option value="research">研究</option>
             </select>
           </div>
@@ -244,13 +231,13 @@ const handleLogout = () => {
                 <input 
                   type="radio" 
                   :value="n"
-                  v-model="newProject.cpriority"
+                  v-model="newDoneWork.cpriority"
                   class="sr-only"
                 >
                 <div 
                   class="text-center p-2 rounded-lg transition-all"
                   :class="[
-                    newProject.cpriority === n 
+                    newDoneWork.cpriority === n 
                       ? priorityColors[n as keyof typeof priorityColors] 
                       : 'glass hover:bg-brand-orange/10'
                   ]"
@@ -260,14 +247,14 @@ const handleLogout = () => {
               </label>
             </div>
             <div class="text-sm text-center mt-1 text-brand-blue/60 dark:text-white/60">
-              {{ priorityLabels[newProject.cpriority as keyof typeof priorityLabels] }}
+              {{ priorityLabels[newDoneWork.cpriority as keyof typeof priorityLabels] }}
             </div>
           </div>
 
           <div>
             <label class="block mb-1">权重</label>
             <input 
-              v-model="newProject.cweight"
+              v-model="newDoneWork.cweight"
               type="number"
               min="0"
               required
@@ -278,27 +265,10 @@ const handleLogout = () => {
           <div>
             <label class="block mb-1">描述</label>
             <textarea 
-              v-model="newProject.description"
+              v-model="newDoneWork.description"
               rows="3"
               class="glass w-full p-2 rounded-lg"
             ></textarea>
-          </div>
-
-          <div>
-            <label class="block mb-1">封面图片</label>
-            <input 
-              type="file"
-              accept="image/*"
-              @change="handleFileSelect"
-              class="glass w-full p-2 rounded-lg"
-            >
-            <div v-if="newProject.coverImage" class="mt-2">
-              <img 
-                :src="newProject.coverImage" 
-                alt="预览" 
-                class="w-full h-32 object-cover rounded-lg"
-              >
-            </div>
           </div>
         </div>
 
