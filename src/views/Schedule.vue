@@ -7,7 +7,6 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import dayjs from 'dayjs'
-import axios from 'axios'
 
 interface TimeBlock {
   id: number
@@ -34,7 +33,6 @@ interface CalendarEvent {
     taskId?: number
     urgent?: boolean
     important?: boolean
-    isPlanning?: boolean
   }
 }
 
@@ -44,10 +42,6 @@ const calendarRef = ref()
 const selectedDate = ref(dayjs().format('YYYY-MM-DD'))
 const showTaskSelector = ref(false)
 const selectedTimeSlot = ref<{ start: string; end: string } | null>(null)
-const activatedDates = ref<Set<string>>(new Set())
-const loading = ref(false)
-const showTimeGrid = ref(false)
-const currentDate = ref<string | null>(null)
 
 const calendarOptions = {
   plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
@@ -71,6 +65,7 @@ const calendarOptions = {
   dayMaxEvents: true,
   allDaySlot: false,
   expandRows: true,
+  height: 'auto',
   select: handleDateSelect,
   eventClick: handleEventClick,
   eventDrop: handleEventDrop,
@@ -83,36 +78,7 @@ const calendarOptions = {
     meridiem: false,
     hour12: false
   },
-  locale: 'zh-cn',
-  datesSet: handleDatesSet
-}
-
-function handleDatesSet(arg: any) {
-  const newDate = dayjs(arg.start).format('YYYY-MM-DD')
-  currentDate.value = newDate
-  showTimeGrid.value = activatedDates.value.has(newDate)
-}
-
-async function activatePlan(date: string) {
-  if (activatedDates.value.has(date)) return
-
-  try {
-    loading.value = true
-    const response = await axios.post('/api/createPlan', { date })
-    
-    if (response.data.success) {
-      activatedDates.value.add(date)
-      showTimeGrid.value = true
-      // Refresh the calendar to update the UI
-      if (calendarRef.value) {
-        calendarRef.value.getApi().refetchEvents()
-      }
-    }
-  } catch (error) {
-    console.error('Failed to activate plan:', error)
-  } finally {
-    loading.value = false
-  }
+  locale: 'zh-cn'
 }
 
 const events = computed(() => {
@@ -140,13 +106,6 @@ function getEventColor(task: Task): string {
 }
 
 function handleDateSelect(selectInfo: any) {
-  const date = dayjs(selectInfo.start).format('YYYY-MM-DD')
-  
-  if (!activatedDates.value.has(date)) {
-    alert('请先开启该日期的计划')
-    return
-  }
-
   selectedTimeSlot.value = {
     start: selectInfo.startStr,
     end: selectInfo.endStr
@@ -216,37 +175,14 @@ const getTaskClass = (task: Task) => {
         </p>
       </div>
 
-      <!-- Loading Indicator -->
-      <div v-if="loading" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div class="neumorphic p-4 rounded-full">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>
-        </div>
-      </div>
-
       <!-- Calendar Section -->
       <div class="neumorphic p-8 rounded-3xl bg-white/90 dark:bg-brand-blue/90 backdrop-blur-xl">
-        <div v-if="currentDate && !showTimeGrid" class="text-center p-8">
-          <button 
-            @click="activatePlan(currentDate)"
-            class="bg-gradient-to-r from-brand-orange to-brand-mint text-white px-6 py-3 rounded-xl 
-                   hover:opacity-90 transition-all duration-300 transform hover:scale-105 shadow-lg"
-          >
-            开启 {{ dayjs(currentDate).format('YYYY年MM月DD日') }} 的计划
-          </button>
-        </div>
-        
         <FullCalendar 
           ref="calendarRef"
           :options="calendarOptions"
           :events="events"
           class="fc-theme-standard calendar-container"
-        >
-          <template v-slot:timeGridDay-body>
-            <div v-if="!showTimeGrid" class="text-center p-8">
-              请先开启计划
-            </div>
-          </template>
-        </FullCalendar>
+        />
       </div>
     </div>
 
