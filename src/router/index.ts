@@ -15,48 +15,49 @@ const router = createRouter({
       path: '/',
       name: 'portfolio',
       component: Portfolio,
-      meta: { requiresAuth: true }
+      // meta: { requiresAuth: true }
     },
     {
       path: '/tasks',
       name: 'tasks',
       component: Tasks,
-      meta: { requiresAuth: true }
+      // meta: { requiresAuth: true }
     },
     {
       path: '/schedule',
       name: 'schedule',
       component: Schedule,
-      meta: { requiresAuth: true }
+      // meta: { requiresAuth: true }
     },
     {
       path: '/pomodoro',
       name: 'pomodoro',
       component: Pomodoro,
-      meta: { requiresAuth: true }
+      // meta: { requiresAuth: true }
     },
     {
       path: '/profile',
       name: 'profile',
       component: Profile,
-      meta: { requiresAuth: true }
+      // meta: { requiresAuth: true }
     },
     {
       path: '/login',
       name: 'login',
       component: Login,
-      meta: { guest: true }
+      // meta: { guest: true }
     },
     {
       path: '/register',
       name: 'register',
       component: Register,
-      meta: { guest: true }
+      // meta: { guest: true }
     }
   ]
 })
 
-// Navigation guard
+// Navigation guard (commented out temporarily)
+/*
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
   
@@ -79,5 +80,6 @@ router.beforeEach((to, from, next) => {
     next()
   }
 })
+*/
 
 export default router
