@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import draggable from 'vuedraggable'
 import { useTimerStore } from '../stores/timer'
 import axios from 'axios'
+import { get } from '../utils/request'
 
 interface TodoItem {
   pkCreation: number
@@ -10,11 +11,12 @@ interface TodoItem {
   updateTime: string | null
   cname: string
   csynopsis: string | null
-  cpriority: number
+  cpriority: number // 优先级: 5-紧急且重要, 4-重要但不紧急, 3/2-紧急但不重要, 1-不紧急也不重要
   ctype: string
   curl: string
   cweight: number
 }
+
 
 const timerStore = useTimerStore()
 
@@ -36,53 +38,70 @@ const newTask = ref({
 
 const fetchTodos = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/readAllWork')
-    const todos: TodoItem[] = response.data
+    // 1️⃣ 带上 /api 前缀，走 Vite 代理
+    const todos: TodoItem[] = await get('/api/readAllWork')
+    console.log('API Response:', todos)
 
-    // 清空现有列表
+    // 2️⃣ 不再用 response.data，直接判断 response 本身
+    if (Array.isArray(todos)) {
+      // 清空现有列表
+      urgentImportant.value = []
+      importantNotUrgent.value = []
+      urgentNotImportant.value = []
+      notUrgentNotImportant.value = []
+
+      // 根据优先级将任务分配到不同象限
+      todos.forEach(todo => {
+        switch (todo.cpriority) {
+          case 5:
+            urgentImportant.value.push(todo)
+            break
+          case 4:
+            importantNotUrgent.value.push(todo)
+            break
+          case 3:
+          case 2:
+            urgentNotImportant.value.push(todo)
+            break
+          case 1:
+            notUrgentNotImportant.value.push(todo)
+            break
+        }
+      })
+
+      // 定义并应用按创建时间降序排序
+      const sortByCreateTime = (a: TodoItem, b: TodoItem) =>
+        new Date(b.createTime).getTime() - new Date(a.createTime).getTime()
+
+      urgentImportant.value.sort(sortByCreateTime)
+      importantNotUrgent.value.sort(sortByCreateTime)
+      urgentNotImportant.value.sort(sortByCreateTime)
+      notUrgentNotImportant.value.sort(sortByCreateTime)
+
+    } else {
+      console.error('获取待办事项失败：返回值不是数组', todos)
+      // 失败时清空列表
+      urgentImportant.value = []
+      importantNotUrgent.value = []
+      urgentNotImportant.value = []
+      notUrgentNotImportant.value = []
+    }
+
+  } catch (error) {
+    console.error('获取待办事项时发生错误:', error)
+    // 错误时清空列表
     urgentImportant.value = []
     importantNotUrgent.value = []
     urgentNotImportant.value = []
     notUrgentNotImportant.value = []
-
-    // 根据优先级将任务分配到不同象限
-    todos.forEach(todo => {
-      switch (todo.cpriority) {
-        case 5:
-          urgentImportant.value.push(todo)
-          break
-        case 4:
-          importantNotUrgent.value.push(todo)
-          break
-        case 3:
-        case 2:
-          urgentNotImportant.value.push(todo)
-          break
-        case 1:
-          notUrgentNotImportant.value.push(todo)
-          break
-      }
-    })
-
-    // 对每个象限内的任务按创建时间排序
-    const sortByCreateTime = (a: TodoItem, b: TodoItem) => {
-      return new Date(b.createTime).getTime() - new Date(a.createTime).getTime()
-    }
-
-    urgentImportant.value.sort(sortByCreateTime)
-    importantNotUrgent.value.sort(sortByCreateTime)
-    urgentNotImportant.value.sort(sortByCreateTime)
-    notUrgentNotImportant.value.sort(sortByCreateTime)
-
-  } catch (error) {
-    console.error('获取待办事项失败:', error)
   }
 }
 
+
+// 组件挂载后获取待办事项
 onMounted(() => {
   fetchTodos()
 })
-
 const addTask = async () => {
   try {
     const cName = newTask.value.cname;
