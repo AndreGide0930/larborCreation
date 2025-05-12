@@ -11,8 +11,6 @@ interface DoneWork {
   cpriority: number
   createTime: string
   updateTime: string
-  coverImage: string
-  file?: File
   description?: string
 }
 
@@ -26,7 +24,6 @@ const newDoneWork = ref<DoneWork>({
   cpriority: 3,
   createTime: new Date().toISOString(),
   updateTime: new Date().toISOString(),
-  coverImage: 'https://picsum.photos/300/200',
   description: ''
 })
 const selectedFile = ref<File | null>(null)
@@ -81,13 +78,6 @@ const handleFileSelect = (event: Event) => {
   const input = event.target as HTMLInputElement
   if (input.files && input.files[0]) {
     selectedFile.value = input.files[0]
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      if (e.target?.result) {
-        newDoneWork.value.coverImage = e.target.result as string
-      }
-    }
-    reader.readAsDataURL(input.files[0])
   }
 }
 
@@ -96,8 +86,7 @@ const addDoneWork = () => {
     ...newDoneWork.value,
     id: Date.now(),
     createTime: new Date().toISOString(),
-    updateTime: new Date().toISOString(),
-    file: selectedFile.value || undefined
+    updateTime: new Date().toISOString()
   }
   
   DoneWorks.value.unshift(DoneWorkToAdd)
@@ -110,7 +99,6 @@ const addDoneWork = () => {
     cpriority: 3,
     createTime: new Date().toISOString(),
     updateTime: new Date().toISOString(),
-    coverImage: 'https://picsum.photos/300/200',
     description: ''
   }
   selectedFile.value = null
@@ -175,7 +163,6 @@ const handleLogout = () => {
         :key="DoneWork.id"
         class="neumorphic rounded-lg overflow-hidden hover:scale-105 transition-transform cursor-pointer"
       >
-        <img :src="DoneWork.coverImage" :alt="DoneWork.name" class="w-full h-48 object-cover">
         <div class="p-4">
           <div class="flex justify-between items-start mb-2">
             <h3 class="text-xl">{{ DoneWork.name }}</h3>
@@ -282,23 +269,6 @@ const handleLogout = () => {
               rows="3"
               class="glass w-full p-2 rounded-lg"
             ></textarea>
-          </div>
-
-          <div>
-            <label class="block mb-1">封面图片</label>
-            <input 
-              type="file"
-              accept="image/*"
-              @change="handleFileSelect"
-              class="glass w-full p-2 rounded-lg"
-            >
-            <div v-if="newDoneWork.coverImage" class="mt-2">
-              <img 
-                :src="newDoneWork.coverImage" 
-                alt="预览" 
-                class="w-full h-32 object-cover rounded-lg"
-              >
-            </div>
           </div>
         </div>
 
