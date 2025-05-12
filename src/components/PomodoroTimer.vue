@@ -82,7 +82,7 @@ onUnmounted(() => {
 
 <template>
   <div class="neumorphic p-8 rounded-lg text-center max-w-xl w-full">
-    <h2 class="text-2xl mb-6">专注计时器</h2>
+    <h2 class="text-2xl mb-6">番茄钟Pomodoro</h2>
 
     <div class="text-6xl font-montserrat mb-8">
       {{ minutes.toString().padStart(2, '0') }}:{{ seconds.toString().padStart(2, '0') }}

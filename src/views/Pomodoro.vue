@@ -15,7 +15,7 @@ const handleExit = () => {
 
 <template>
   <div class="container mx-auto px-4 py-8">
-    <h1 class="text-4xl mb-8 text-center">Focus Mode</h1>
+    <h1 class="text-4xl mb-8 text-center">专注车间</h1>
     
     <div class="flex flex-col gap-8 items-center">
       <PomodoroTimer :onExit="handleExit" />

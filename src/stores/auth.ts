@@ -56,7 +56,8 @@ export const useAuthStore = defineStore('auth', () => {
 
       if (response.data.token) {
         localStorage.setItem('token', response.data.token)
-        user.value = response.data.user
+        localStorage.setItem('userInfo', JSON.stringify(response.data.userInfo))
+        user.value = response.data.userInfo
         return { success: true }
       }
 
@@ -74,7 +75,9 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = true
       error.value = ''
       localStorage.removeItem('token')
+      localStorage.removeItem('userInfo')
       user.value = null
+      window.location.href = '/login'
     } catch (e: any) {
       error.value = e.message
     } finally {
@@ -95,6 +98,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       if (response.data.success) {
         user.value = response.data.user
+        localStorage.setItem('userInfo', JSON.stringify(response.data.user))
         return { success: true }
       }
 
@@ -107,25 +111,20 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Initialize user from token
-  const initializeAuth = async () => {
-    const token = localStorage.getItem('token')
-    if (token) {
+  // 初始化用户信息
+  const initializeAuth = () => {
+    const userInfo = localStorage.getItem('userInfo')
+    if (userInfo) {
       try {
-        const response = await axios.get('http://localhost:8080/auth/me', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        })
-        user.value = response.data.user
+        user.value = JSON.parse(userInfo)
       } catch (e) {
-        localStorage.removeItem('token')
+        localStorage.removeItem('userInfo')
         user.value = null
       }
     }
   }
 
-  // Initialize auth state
+  // 初始化认证状态
   initializeAuth()
 
   return {
