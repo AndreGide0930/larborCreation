@@ -7,6 +7,7 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import dayjs from 'dayjs'
+import axios from 'axios'
 
 interface TimeBlock {
   id: number
@@ -33,6 +34,7 @@ interface CalendarEvent {
     taskId?: number
     urgent?: boolean
     important?: boolean
+    isPlanning?: boolean
   }
 }
 
@@ -42,6 +44,8 @@ const calendarRef = ref()
 const selectedDate = ref(dayjs().format('YYYY-MM-DD'))
 const showTaskSelector = ref(false)
 const selectedTimeSlot = ref<{ start: string; end: string } | null>(null)
+const activatedDates = ref<Set<string>>(new Set())
+const loading = ref(false)
 
 const calendarOptions = {
   plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
@@ -65,7 +69,6 @@ const calendarOptions = {
   dayMaxEvents: true,
   allDaySlot: false,
   expandRows: true,
-  height: 'auto',
   select: handleDateSelect,
   eventClick: handleEventClick,
   eventDrop: handleEventDrop,
@@ -78,7 +81,46 @@ const calendarOptions = {
     meridiem: false,
     hour12: false
   },
-  locale: 'zh-cn'
+  locale: 'zh-cn',
+  dayCellDidMount: handleDayCellMount
+}
+
+function handleDayCellMount(arg: any) {
+  const date = dayjs(arg.date).format('YYYY-MM-DD')
+  const isActivated = activatedDates.value.has(date)
+  
+  // Create activation button
+  const button = document.createElement('button')
+  button.innerHTML = isActivated ? '已开启计划' : '开启计划'
+  button.className = `plan-activation-btn ${isActivated ? 'activated' : ''}`
+  button.onclick = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    activatePlan(date)
+  }
+  
+  arg.el.appendChild(button)
+}
+
+async function activatePlan(date: string) {
+  if (activatedDates.value.has(date)) return
+
+  try {
+    loading.value = true
+    const response = await axios.post('/api/createPlan', { date })
+    
+    if (response.data.success) {
+      activatedDates.value.add(date)
+      // Refresh the calendar to update the UI
+      if (calendarRef.value) {
+        calendarRef.value.getApi().refetchEvents()
+      }
+    }
+  } catch (error) {
+    console.error('Failed to activate plan:', error)
+  } finally {
+    loading.value = false
+  }
 }
 
 const events = computed(() => {
@@ -106,6 +148,13 @@ function getEventColor(task: Task): string {
 }
 
 function handleDateSelect(selectInfo: any) {
+  const date = dayjs(selectInfo.start).format('YYYY-MM-DD')
+  
+  if (!activatedDates.value.has(date)) {
+    alert('请先开启该日期的计划')
+    return
+  }
+
   selectedTimeSlot.value = {
     start: selectInfo.startStr,
     end: selectInfo.endStr
@@ -173,6 +222,13 @@ const getTaskClass = (task: Task) => {
         <p class="text-brand-blue/60 dark:text-white/60 font-opensans">
           高效规划和组织你的任务
         </p>
+      </div>
+
+      <!-- Loading Indicator -->
+      <div v-if="loading" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="neumorphic p-4 rounded-full">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>
+        </div>
       </div>
 
       <!-- Calendar Section -->
@@ -323,6 +379,17 @@ const getTaskClass = (task: Task) => {
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
   @apply bg-brand-orange/50 rounded-full hover:bg-brand-orange/70 transition-colors;
+}
+
+/* Plan activation button styles */
+.plan-activation-btn {
+  @apply px-3 py-1 rounded-full text-sm font-medium transition-all duration-300
+         bg-white/50 dark:bg-brand-blue/50 backdrop-blur-sm
+         hover:bg-brand-orange/20 hover:scale-105;
+}
+
+.plan-activation-btn.activated {
+  @apply bg-brand-mint/20 text-brand-mint cursor-default hover:scale-100;
 }
 
 /* Additional modern styling */
