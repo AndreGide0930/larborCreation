@@ -46,6 +46,8 @@ const showTaskSelector = ref(false)
 const selectedTimeSlot = ref<{ start: string; end: string } | null>(null)
 const activatedDates = ref<Set<string>>(new Set())
 const loading = ref(false)
+const showTimeGrid = ref(false)
+const currentDate = ref<string | null>(null)
 
 const calendarOptions = {
   plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
@@ -82,24 +84,13 @@ const calendarOptions = {
     hour12: false
   },
   locale: 'zh-cn',
-  dayCellDidMount: handleDayCellMount
+  datesSet: handleDatesSet
 }
 
-function handleDayCellMount(arg: any) {
-  const date = dayjs(arg.date).format('YYYY-MM-DD')
-  const isActivated = activatedDates.value.has(date)
-  
-  // Create activation button
-  const button = document.createElement('button')
-  button.innerHTML = isActivated ? '已开启计划' : '开启计划'
-  button.className = `plan-activation-btn ${isActivated ? 'activated' : ''}`
-  button.onclick = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    activatePlan(date)
-  }
-  
-  arg.el.appendChild(button)
+function handleDatesSet(arg: any) {
+  const newDate = dayjs(arg.start).format('YYYY-MM-DD')
+  currentDate.value = newDate
+  showTimeGrid.value = activatedDates.value.has(newDate)
 }
 
 async function activatePlan(date: string) {
@@ -111,6 +102,7 @@ async function activatePlan(date: string) {
     
     if (response.data.success) {
       activatedDates.value.add(date)
+      showTimeGrid.value = true
       // Refresh the calendar to update the UI
       if (calendarRef.value) {
         calendarRef.value.getApi().refetchEvents()
@@ -233,12 +225,28 @@ const getTaskClass = (task: Task) => {
 
       <!-- Calendar Section -->
       <div class="neumorphic p-8 rounded-3xl bg-white/90 dark:bg-brand-blue/90 backdrop-blur-xl">
+        <div v-if="currentDate && !showTimeGrid" class="text-center p-8">
+          <button 
+            @click="activatePlan(currentDate)"
+            class="bg-gradient-to-r from-brand-orange to-brand-mint text-white px-6 py-3 rounded-xl 
+                   hover:opacity-90 transition-all duration-300 transform hover:scale-105 shadow-lg"
+          >
+            开启 {{ dayjs(currentDate).format('YYYY年MM月DD日') }} 的计划
+          </button>
+        </div>
+        
         <FullCalendar 
           ref="calendarRef"
           :options="calendarOptions"
           :events="events"
           class="fc-theme-standard calendar-container"
-        />
+        >
+          <template v-slot:timeGridDay-body>
+            <div v-if="!showTimeGrid" class="text-center p-8">
+              请先开启计划
+            </div>
+          </template>
+        </FullCalendar>
       </div>
     </div>
 
@@ -379,17 +387,6 @@ const getTaskClass = (task: Task) => {
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
   @apply bg-brand-orange/50 rounded-full hover:bg-brand-orange/70 transition-colors;
-}
-
-/* Plan activation button styles */
-.plan-activation-btn {
-  @apply px-3 py-1 rounded-full text-sm font-medium transition-all duration-300
-         bg-white/50 dark:bg-brand-blue/50 backdrop-blur-sm
-         hover:bg-brand-orange/20 hover:scale-105;
-}
-
-.plan-activation-btn.activated {
-  @apply bg-brand-mint/20 text-brand-mint cursor-default hover:scale-100;
 }
 
 /* Additional modern styling */
