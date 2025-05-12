@@ -43,7 +43,7 @@ const calendarRef = ref()
 const selectedDate = ref(dayjs().format('YYYY-MM-DD'))
 const showTaskSelector = ref(false)
 const selectedTimeSlot = ref<{ start: string; end: string } | null>(null)
-const showTimeGrid = ref(true)
+const showTimeGrid = ref(false)
 const isCreatingPlan = ref(false)
 const error = ref('')
 
@@ -241,7 +241,7 @@ const getTaskClass = (task: Task) => {
 
     <!-- Task Selector Modal -->
     <div 
-      v-if="showTaskSelector"
+      v-if="showTaskSelector && showTimeGrid"
       class="fixed inset-0 bg-black/20 dark:bg-black/40 flex items-center justify-center backdrop-blur-xl transition-all duration-300"
       @click.self="showTaskSelector = false"
     >
