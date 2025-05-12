@@ -7,6 +7,7 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import dayjs from 'dayjs'
+import { request } from '../utils/request'
 
 interface TimeBlock {
   id: number
@@ -42,6 +43,9 @@ const calendarRef = ref()
 const selectedDate = ref(dayjs().format('YYYY-MM-DD'))
 const showTaskSelector = ref(false)
 const selectedTimeSlot = ref<{ start: string; end: string } | null>(null)
+const showTimeGrid = ref(true)
+const isCreatingPlan = ref(false)
+const error = ref('')
 
 const calendarOptions = {
   plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
@@ -65,7 +69,6 @@ const calendarOptions = {
   dayMaxEvents: true,
   allDaySlot: false,
   expandRows: true,
-  height: 'auto',
   select: handleDateSelect,
   eventClick: handleEventClick,
   eventDrop: handleEventDrop,
@@ -78,7 +81,41 @@ const calendarOptions = {
     meridiem: false,
     hour12: false
   },
-  locale: 'zh-cn'
+  locale: 'zh-cn',
+  datesSet: handleDatesSet
+}
+
+function handleDatesSet(arg: any) {
+  const currentDate = dayjs(arg.start).format('YYYY-MM-DD')
+  if (currentDate !== selectedDate.value) {
+    selectedDate.value = currentDate
+    showTimeGrid.value = false
+  }
+}
+
+async function createPlan() {
+  if (isCreatingPlan.value) return
+
+  try {
+    isCreatingPlan.value = true
+    error.value = ''
+
+    await request('/api/createPlan', {
+      method: 'POST',
+      body: JSON.stringify({
+        date: selectedDate.value
+      })
+    })
+
+    showTimeGrid.value = true
+  } catch (e: any) {
+    error.value = e.message || '创建计划失败，请稍后重试'
+    setTimeout(() => {
+      error.value = ''
+    }, 3000)
+  } finally {
+    isCreatingPlan.value = false
+  }
 }
 
 const events = computed(() => {
@@ -182,7 +219,23 @@ const getTaskClass = (task: Task) => {
           :options="calendarOptions"
           :events="events"
           class="fc-theme-standard calendar-container"
-        />
+        >
+          <template #timeGridDay-body>
+            <div v-if="!showTimeGrid" class="flex items-center justify-center h-[600px]">
+              <div class="text-center">
+                <button 
+                  @click="createPlan"
+                  :disabled="isCreatingPlan"
+                  class="glass px-8 py-4 rounded-xl text-xl hover:bg-brand-orange/10 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                >
+                  <span v-if="isCreatingPlan">创建中...</span>
+                  <span v-else>开启计划</span>
+                </button>
+                <p v-if="error" class="mt-4 text-red-500">{{ error }}</p>
+              </div>
+            </div>
+          </template>
+        </FullCalendar>
       </div>
     </div>
 
@@ -193,9 +246,7 @@ const getTaskClass = (task: Task) => {
       @click.self="showTaskSelector = false"
     >
       <div class="neumorphic p-8 rounded-3xl w-full max-w-md bg-white/90 dark:bg-brand-blue/90 backdrop-blur-xl transform transition-all duration-300 scale-100 hover:scale-[1.02]">
-        <h2 class="text-2xl font-bold mb-2 bg-gradient-to-r from-brand-orange to-brand-mint bg-clip-text text-transparent">
-          安排任务
-        </h2>
+        <h2 class="text-2xl font-bold mb-2 bg-gradient-to-r from-brand-orange to-brand-mint bg-clip-text text-transparent">安排任务</h2>
         <p class="text-sm mb-6 text-brand-blue/60 dark:text-white/60 font-opensans">
           {{ dayjs(selectedTimeSlot?.start).format('YYYY年MM月DD日 HH:mm') }}
         </p>
