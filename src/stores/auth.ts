@@ -28,7 +28,7 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = true
       error.value = ''
 
-      const response = await axios.post('http://localhost:8080/auth/sendCode', { email })
+      const response = await axios.post('/api/auth/sendCode', { email })
       
       if (response.data.success) {
         startResendTimer()
@@ -49,7 +49,7 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = true
       error.value = ''
 
-      const response = await axios.post('http://localhost:8080/auth/verifyCode', { 
+      const response = await axios.post('/api/auth/verifyCode', { 
         email, 
         code 
       })
@@ -77,7 +77,6 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.removeItem('token')
       localStorage.removeItem('userInfo')
       user.value = null
-      window.location.href = '/login'
     } catch (e: any) {
       error.value = e.message
     } finally {
@@ -90,7 +89,7 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = true
       error.value = ''
 
-      const response = await axios.put('http://localhost:8080/auth/profile', updates, {
+      const response = await axios.put('/api/auth/profile', updates, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`
         }
@@ -111,7 +110,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // 初始化用户信息
+  // Initialize user info
   const initializeAuth = () => {
     const userInfo = localStorage.getItem('userInfo')
     if (userInfo) {
@@ -124,7 +123,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // 初始化认证状态
+  // Initialize auth state
   initializeAuth()
 
   return {
