@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
+import { request } from '../utils/request'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -11,11 +12,14 @@ const loading = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
 
+// 从本地存储获取用户信息
+const userInfo = ref(JSON.parse(localStorage.getItem('userInfo') || '{}'))
+
 const userProfile = ref({
-  username: '',
-  email: '',
-  phone: '',
-  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + Math.random(),
+  username: userInfo.value.username || '',
+  email: userInfo.value.email || '',
+  phone: userInfo.value.phone || '',
+  avatar: userInfo.value.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + Math.random(),
   preferences: {
     emailNotifications: true,
     darkMode: false,
@@ -29,13 +33,13 @@ onMounted(async () => {
     return
   }
   
-  // Load user profile data
+  // 更新用户信息
   userProfile.value = {
-    username: authStore.user.user_metadata?.username || '',
-    email: authStore.user.email || '',
-    phone: authStore.user.phone || '',
-    avatar: authStore.user.user_metadata?.avatar || userProfile.value.avatar,
-    preferences: authStore.user.user_metadata?.preferences || userProfile.value.preferences
+    username: userInfo.value.username || '',
+    email: userInfo.value.email || '',
+    phone: userInfo.value.phone || '',
+    avatar: userInfo.value.avatar || userProfile.value.avatar,
+    preferences: userProfile.value.preferences
   }
 })
 
@@ -44,20 +48,36 @@ const handleUpdateProfile = async () => {
     loading.value = true
     errorMessage.value = ''
     
-    const { error } = await authStore.updateProfile({
-      username: userProfile.value.username,
-      avatar: userProfile.value.avatar,
-      preferences: userProfile.value.preferences
+    const response = await request('/api/UpdateUser', {
+      method: 'POST',
+      body: JSON.stringify({
+        pkUserInfo: userInfo.value.pkUserInfo,
+        username: userProfile.value.username,
+        email: userProfile.value.email,
+        phone: userProfile.value.phone,
+        avatar: userProfile.value.avatar,
+        enabled: true
+      })
     })
 
-    if (error) throw error
-
-    successMessage.value = '个人信息更新成功'
-    editMode.value = false
-    
-    setTimeout(() => {
-      successMessage.value = ''
-    }, 3000)
+    if (response) {
+      // 更新本地存储的用户信息
+      const updatedUserInfo = {
+        ...userInfo.value,
+        username: userProfile.value.username,
+        email: userProfile.value.email,
+        phone: userProfile.value.phone,
+        avatar: userProfile.value.avatar
+      }
+      localStorage.setItem('userInfo', JSON.stringify(updatedUserInfo))
+      
+      successMessage.value = '个人信息更新成功'
+      editMode.value = false
+      
+      setTimeout(() => {
+        successMessage.value = ''
+      }, 3000)
+    }
   } catch (error: any) {
     errorMessage.value = error.message || '更新失败，请稍后重试'
   } finally {

@@ -15,7 +15,7 @@ const timerStore = useTimerStore()
 const isRunning = ref(false)
 const minutes = ref(25)
 const seconds = ref(0)
-let timerInterval: number | undefined
+let timerInterval: NodeJS.Timeout | undefined
 
 onMounted(() => {
   if (timerStore.activeTask) {
