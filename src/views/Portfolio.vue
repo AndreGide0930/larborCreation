@@ -53,7 +53,7 @@ const fetchDoneWorks = async () => {
   error.value = ''
   
   try {
-    const data = await request('/readAllWorks')
+    const data = await request('/api/readAllWorks')
     DoneWorks.value = data
   } catch (err: unknown) {
     if (err instanceof Error) {

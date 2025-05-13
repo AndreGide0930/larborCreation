@@ -45,7 +45,7 @@ const handleSendCode = async () => {
   error.value = ''
 
   try {
-    const result = await post(`/auth/sendCode?email=${encodeURIComponent(email.value)}`, null)
+    const result = await post(`/api/auth/sendCode?email=${encodeURIComponent(email.value)}`, null)
     if (typeof result === 'string') {
       showVerification.value = true
       startResendTimer()
@@ -66,7 +66,7 @@ const handleVerify = async () => {
   error.value = ''
 
   try {
-    const response = await post(`/auth/verifyCode?email=${encodeURIComponent(email.value)}&code=${encodeURIComponent(verificationCode.value)}`, null)
+    const response = await post(`/api/auth/verifyCode?email=${encodeURIComponent(email.value)}&code=${encodeURIComponent(verificationCode.value)}`, null)
     
     // 检查响应中是否包含 userInfo 和 token
     if (response && response.userInfo && response.token) {

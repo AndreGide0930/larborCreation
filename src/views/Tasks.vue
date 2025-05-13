@@ -38,8 +38,8 @@ const newTask = ref({
 
 const fetchTodos = async () => {
   try {
-    // 1️⃣ 带上 /api 前缀，走 Vite 代理
-    const todos: TodoItem[] = await get('/api/readAllWork')
+    console.log('Fetching todos...')
+    const todos: TodoItem[] = await get('/api/readAllWorkById')
     console.log('API Response:', todos)
 
     // 2️⃣ 不再用 response.data，直接判断 response 本身
@@ -100,6 +100,8 @@ const fetchTodos = async () => {
 
 // 组件挂载后获取待办事项
 onMounted(() => {
+  console.log('Tasks component mounted')
+  console.log('Current token:', localStorage.getItem('token'))
   fetchTodos()
 })
 const addTask = async () => {
