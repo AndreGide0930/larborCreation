@@ -1,6 +1,6 @@
 // 通用请求函数（使用 Vite 代理，URL 以 /api 开头）
 
-export const request = async (url: string, options: RequestInit = {}) => {
+export const request = async (url: string, options: RequestInit & { params?: Record<string, any> } = {}) => {
   const token = localStorage.getItem('token')
 
   // 登录/验证码接口不携带 token
@@ -17,13 +17,28 @@ export const request = async (url: string, options: RequestInit = {}) => {
     headers['Authorization'] = `Bearer ${token}`
   }
 
+  // 处理查询参数
+  let finalUrl = url
+  if (options.params) {
+    const searchParams = new URLSearchParams()
+    Object.entries(options.params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        searchParams.append(key, String(value))
+      }
+    })
+    const queryString = searchParams.toString()
+    if (queryString) {
+      finalUrl += (url.includes('?') ? '&' : '?') + queryString
+    }
+  }
+
   const finalOptions = {
     ...options,
     headers,
     credentials: 'include' as RequestCredentials
   }
 
-  const response = await fetch(url, finalOptions)
+  const response = await fetch(finalUrl, finalOptions)
 
   if (response.status === 401) {
     localStorage.removeItem('token')
@@ -62,7 +77,7 @@ export const request = async (url: string, options: RequestInit = {}) => {
 }
 
 // 封装常用请求方法
-export const get = (url: string, options: RequestInit = {}) =>
+export const get = (url: string, options: RequestInit & { params?: Record<string, any> } = {}) =>
   request(url, { ...options, method: 'GET' })
 
 export const post = (url: string, data: any, options: RequestInit = {}) =>

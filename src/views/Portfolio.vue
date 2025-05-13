@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { request } from '../utils/request'
+import { useAuthStore } from '../stores/auth'
 
 interface DoneWork {
   id: number
@@ -31,6 +32,7 @@ const loading = ref(false)
 const error = ref('')
 const router = useRouter()
 const userInfo = ref(JSON.parse(localStorage.getItem('userInfo') || '{}'))
+const authStore = useAuthStore()
 
 const priorityLabels = {
   1: '非常低',
@@ -53,7 +55,11 @@ const fetchDoneWorks = async () => {
   error.value = ''
   
   try {
-    const data = await request('/api/readAllWorks')
+    const data = await request('/api/readAllWorksById', {
+      params: {
+        pkUserInfo: userInfo.value.pkUserInfo
+      }
+    })
     DoneWorks.value = data
   } catch (err: unknown) {
     if (err instanceof Error) {
@@ -105,9 +111,8 @@ const addDoneWork = () => {
   showUploadForm.value = false
 }
 
-const handleLogout = () => {
-  localStorage.removeItem('token')
-  localStorage.removeItem('userInfo')
+const handleLogout = async () => {
+  await authStore.signOut()
   router.push('/login')
 }
 </script>
@@ -119,16 +124,8 @@ const handleLogout = () => {
         我的作品集
       </h1>
       
-      <div class="flex items-center gap-4">
-        <div class="text-sm text-brand-blue/60 dark:text-white/60">
-          {{ userInfo.username || userInfo.email }}
-        </div>
-        <button 
-          @click="handleLogout"
-          class="glass px-4 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
-        >
-          退出登录
-        </button>
+      <div class="text-sm text-brand-blue/60 dark:text-white/60">
+        {{ userInfo.username || userInfo.email }}
       </div>
     </div>
 

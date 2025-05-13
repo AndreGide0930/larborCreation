@@ -39,7 +39,12 @@ const newTask = ref({
 const fetchTodos = async () => {
   try {
     console.log('Fetching todos...')
-    const todos: TodoItem[] = await get('/api/readAllWorkById')
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+    const todos: TodoItem[] = await get('/api/readAllWorkById', {
+      params: {
+        pkUserInfo: userInfo.pkUserInfo
+      }
+    })
     console.log('API Response:', todos)
 
     // 2️⃣ 不再用 response.data，直接判断 response 本身

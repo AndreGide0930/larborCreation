@@ -76,8 +76,8 @@ const calendarOptions = computed(() => ({
   nowIndicator: true,
   slotEventOverlap: false,
   eventTimeFormat: {
-    hour: '2-digit',
-    minute: '2-digit',
+    hour: '2-digit' as const,
+    minute: '2-digit' as const,
     meridiem: false,
     hour12: false
   },
@@ -85,7 +85,7 @@ const calendarOptions = computed(() => ({
 }))
 
 const events = computed(() => {
-  if (!currentPlan.value) return []
+  if (!currentPlan.value?.tasks) return []
   
   return currentPlan.value.tasks.map(task => ({
     id: task.id,
@@ -105,14 +105,38 @@ async function createPlan() {
   try {
     loading.value = true
     error.value = ''
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+    
+    if (!userInfo.pkUserInfo) {
+      throw new Error('用户信息不完整，请重新登录')
+    }
+
+    console.log('Creating plan with data:', {
+      date: selectedDate.value,
+      fkUserInfoId: userInfo.pkUserInfo
+    })
 
     const response = await request('/api/createPlan', {
       method: 'POST',
-      body: JSON.stringify({ date: selectedDate.value })
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        planDate: selectedDate.value,
+        planName: `${selectedDate.value} 的学习计划`,
+        fkUserInfoId: userInfo.pkUserInfo
+      })
     })
+
+    console.log('Plan creation response:', response)
+    
+    if (!response) {
+      throw new Error('创建计划失败：服务器未返回数据')
+    }
 
     currentPlan.value = response
   } catch (e: any) {
+    console.error('创建计划失败:', e)
     error.value = e.message || '创建计划失败'
     setTimeout(() => error.value = '', 3000)
   } finally {
@@ -218,7 +242,13 @@ async function createTask() {
 onMounted(async () => {
   try {
     loading.value = true
-    const response = await request(`/api/readAllWorkById?date=${selectedDate.value}`)
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+    const response = await request(`/api/readAllWorkById`, {
+      params: {
+        pkUserInfo: userInfo.pkUserInfo,
+        date: selectedDate.value
+      }
+    })
     currentPlan.value = response
   } catch (e: any) {
     error.value = e.message || '加载计划失败'

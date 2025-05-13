@@ -1,0 +1,1216 @@
+openapi: 3.0.1
+info:
+  title: My Web Service
+  description: |+
+    Restore the DTO explosion that was 
+    eliminated by server-side developers
+  version: 1.0
+paths:
+  /DeleteUser:
+    delete:
+      tags:
+        - UserController
+      operationId: deleteUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dynamic_UserInfo'
+        required: true
+      responses:
+        200:
+          description: OK
+  /Login:
+    post:
+      tags:
+        - UserController
+      operationId: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dynamic_UserInfo'
+        required: true
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dynamic_UserInfo'
+  /ReadUser:
+    get:
+      tags:
+        - UserController
+      operationId: readUser
+      parameters:
+        - name: pkUserInfo
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dynamic_UserInfo'
+  /StreamDownload:
+    get:
+      tags:
+        - WorksController
+      operationId: streamDownload
+      parameters:
+        - name: pkCreation
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_StreamingResponseBody'
+  /UpdateUser:
+    post:
+      tags:
+        - UserController
+      operationId: updateUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dynamic_UserInfo'
+        required: true
+      responses:
+        200:
+          description: OK
+  /analysis/{pkTimedoro}:
+    put:
+      tags:
+        - TimedoroController
+      operationId: analysis
+      parameters:
+        - name: p
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+  /auth/login:
+    post:
+      tags:
+        - AuthController
+      operationId: login_2
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: username
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+  /auth/register:
+    post:
+      tags:
+        - AuthController
+      operationId: register
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+  /auth/sendCode:
+    post:
+      tags:
+        - AuthController
+      operationId: sendCode
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+  /auth/verifyCode:
+    post:
+      tags:
+        - AuthController
+      operationId: verifyCode
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+  /changeType:
+    post:
+      tags:
+        - CreationController
+      operationId: changeType
+      parameters:
+        - name: pkCreation
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+  /create:
+    post:
+      tags:
+        - CreationController
+      operationId: setCreation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dynamic_Creation'
+        required: true
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dynamic_Creation'
+  /createPlan:
+    post:
+      tags:
+        - PlanController
+      operationId: createPlan
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dynamic_Plan'
+        required: true
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dynamic_Plan'
+  /createRemind:
+    post:
+      tags:
+        - RemindController
+      operationId: createRemind
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dynamic_Remind'
+        required: true
+      responses:
+        200:
+          description: OK
+  /createTimedoro:
+    post:
+      tags:
+        - TimedoroController
+      operationId: createTimedoro
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dynamic_Timedoro'
+        required: true
+      responses:
+        200:
+          description: OK
+  /createWork:
+    post:
+      tags:
+        - WorkController
+      operationId: createWork
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkInput'
+        required: true
+      responses:
+        200:
+          description: OK
+  /delete:
+    delete:
+      tags:
+        - CreationController
+      operationId: deleteCreation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dynamic_Creation'
+        required: true
+      responses:
+        200:
+          description: OK
+  /deletePlan:
+    delete:
+      tags:
+        - PlanController
+      operationId: deletePlan
+      parameters:
+        - name: pkPlan
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+  /deleteRemind:
+    delete:
+      tags:
+        - RemindController
+      operationId: delete
+      parameters:
+        - name: pkRemind
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+  /deleteTimedoro:
+    delete:
+      tags:
+        - TimedoroController
+      operationId: deleteTimedoro
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dynamic_Timedoro'
+        required: true
+      responses:
+        200:
+          description: OK
+  /fileDownload:
+    get:
+      tags:
+        - WorksController
+      operationId: fileDownload
+      parameters:
+        - name: pkCreation
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: pathName
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: OK
+  /oneWorks:
+    get:
+      tags:
+        - WorksController
+      operationId: detailOfWorks
+      parameters:
+        - name: pkCreation
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dynamic_Creation'
+  /readAllWorkById:
+    get:
+      tags:
+        - WorkController
+      operationId: readWork
+      parameters:
+        - name: pkUserInfo
+          in: query
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Dynamic_Creation'
+  /readAllWorksById:
+    get:
+      tags:
+        - WorksController
+      operationId: readWorks
+      parameters:
+        - name: pkUserInfo
+          in: query
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Dynamic_Creation'
+  /readOneWork:
+    get:
+      tags:
+        - WorkController
+      operationId: readOneWork
+      parameters:
+        - name: pkCreation
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dynamic_Creation'
+  /readPlan:
+    get:
+      tags:
+        - PlanController
+      operationId: readPlan
+      parameters:
+        - name: pkPlan
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dynamic_Plan'
+  /readPlanById:
+    get:
+      tags:
+        - PlanController
+      operationId: readPlanById
+      parameters:
+        - name: pkUserInfo
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Dynamic_Plan'
+  /readRemind:
+    get:
+      tags:
+        - RemindController
+      operationId: readRemind
+      parameters:
+        - name: fkPlan
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dynamic_Remind'
+  /update:
+    put:
+      tags:
+        - CreationController
+      operationId: updateCreation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dynamic_Creation'
+        required: true
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dynamic_Creation'
+  /updatePlan:
+    put:
+      tags:
+        - PlanController
+      operationId: updatePlan
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dynamic_Plan'
+        required: true
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dynamic_Plan'
+  /updateRemind:
+    put:
+      tags:
+        - RemindController
+      operationId: updateRemind
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dynamic_Remind'
+        required: true
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dynamic_Remind'
+  /updateTimedoro:
+    put:
+      tags:
+        - TimedoroController
+      operationId: updateTimedoro
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dynamic_Timedoro'
+        required: true
+      responses:
+        200:
+          description: OK
+  /works/{pkCreation}/timedoro/{pkTimedoro}:
+    delete:
+      tags:
+        - WorkController
+      operationId: removeTimedoroRelation
+      parameters:
+        - name: pkCreation
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: pkTimedoro
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+  /worksUpload:
+    post:
+      tags:
+        - WorksController
+      operationId: AliOssUpload
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dynamic_Creation'
+        required: true
+      responses:
+        200:
+          description: OK
+  /{pkUserInfo}:
+    get:
+      tags:
+        - CreationController
+      operationId: getCreations
+      parameters:
+        - name: pkUserInfo
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Dynamic_Creation'
+components:
+  schemas:
+    Dynamic_UserInfo:
+      type: object
+      description: Entity for table "user_info"
+      properties:
+        pkUserInfo:
+          type: integer
+          format: int64
+        username:
+          nullable: true
+          type: string
+        avatar:
+          nullable: true
+          type: string
+        email:
+          nullable: true
+          type: string
+        createdAt:
+          nullable: true
+          type: string
+        phone:
+          nullable: true
+          type: string
+        enabled:
+          type: boolean
+        verificationCode:
+          nullable: true
+          type: string
+        verificationCodeExpiry:
+          nullable: true
+          type: string
+        plans:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dynamic_Plan'
+        creations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dynamic_Creation'
+        role:
+          nullable: true
+          $ref: '#/components/schemas/Dynamic_Role'
+    ResponseEntity_StreamingResponseBody:
+      type: object
+      properties:
+        statusCode:
+          $ref: '#/components/schemas/HttpStatusCode'
+        statusCodeValue:
+          type: integer
+          format: int32
+        headers:
+          $ref: '#/components/schemas/HttpHeaders'
+        body:
+          nullable: true
+          $ref: '#/components/schemas/StreamingResponseBody'
+    ResponseEntity_Object:
+      type: object
+      properties:
+        statusCode:
+          $ref: '#/components/schemas/HttpStatusCode'
+        statusCodeValue:
+          type: integer
+          format: int32
+        headers:
+          $ref: '#/components/schemas/HttpHeaders'
+        body:
+          nullable: true
+          type: object
+    Dynamic_Creation:
+      type: object
+      properties:
+        pkCreation:
+          type: integer
+          format: int64
+        fkUserInfo:
+          nullable: true
+          $ref: '#/components/schemas/Dynamic_UserInfo'
+        cName:
+          type: string
+        cType:
+          type: string
+          enum:
+            - TODO
+            - DONE
+        cWeight:
+          nullable: true
+          type: number
+          format: float
+        cPriority:
+          type: integer
+          format: int32
+        cSynopsis:
+          nullable: true
+          type: string
+        cUrl:
+          nullable: true
+          type: string
+        createTime:
+          type: string
+        updateTime:
+          nullable: true
+          type: string
+        timedoroes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dynamic_Timedoro'
+    Dynamic_Plan:
+      type: object
+      properties:
+        pkPlan:
+          type: integer
+          format: int64
+        planDate:
+          description: 计划日期
+          type: string
+        planName:
+          description: 计划名称
+          type: string
+        fkUserInfoId:
+          type: integer
+          format: int64
+        fkUserInfo:
+          $ref: '#/components/schemas/Dynamic_UserInfo'
+        timedoroes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dynamic_Timedoro'
+    Dynamic_Remind:
+      type: object
+      properties:
+        pkRemind:
+          type: integer
+          format: int64
+        remindName:
+          type: string
+        fkPlan:
+          nullable: true
+          type: integer
+          format: int64
+        remindTime:
+          type: string
+        remindType:
+          type: string
+          enum:
+            - Tough
+            - Gentle
+    Dynamic_Timedoro:
+      type: object
+      properties:
+        pkTimedoro:
+          type: integer
+          format: int64
+        timeSlice:
+          description: '时间切片起始属性（如2025-03-18 14:00:00）'
+          type: string
+        creations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dynamic_Creation'
+        plans:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dynamic_Plan'
+        sumDone:
+          type: integer
+          format: int32
+        sumTodo:
+          type: integer
+          format: int32
+    WorkInput:
+      type: object
+      properties:
+        pkCreation:
+          nullable: true
+          type: integer
+          format: int64
+        cname:
+          type: string
+        ctype:
+          type: string
+          enum:
+            - TODO
+            - DONE
+        cpriority:
+          type: integer
+          format: int32
+        csynopsis:
+          nullable: true
+          type: string
+        updateTime:
+          nullable: true
+          type: string
+    Dynamic_Role:
+      type: object
+      properties:
+        roleId:
+          description: 角色ID
+          type: integer
+          format: int32
+        roleType:
+          description: 角色名称（如admin、user）
+          type: string
+          enum:
+            - ADMIN
+            - USER
+        roleDesc:
+          description: 角色描述
+          nullable: true
+          type: string
+        createTime:
+          description: 创建时间
+          nullable: true
+          type: string
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dynamic_UserInfo'
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dynamic_Permission'
+    HttpStatusCode:
+      type: object
+      properties:
+        1xxInformational:
+          type: boolean
+        2xxSuccessful:
+          type: boolean
+        3xxRedirection:
+          type: boolean
+        4xxClientError:
+          type: boolean
+        5xxServerError:
+          type: boolean
+        error:
+          type: boolean
+    HttpHeaders:
+      type: object
+      properties:
+        accept:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaType'
+        acceptLanguage:
+          type: array
+          items:
+            $ref: '#/components/schemas/Locale_LanguageRange'
+        acceptLanguageAsLocales:
+          type: array
+          items:
+            $ref: '#/components/schemas/Locale'
+        acceptPatch:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaType'
+        accessControlAllowCredentials:
+          type: boolean
+        accessControlAllowHeaders:
+          type: array
+          items:
+            type: string
+        accessControlAllowMethods:
+          type: array
+          items:
+            $ref: '#/components/schemas/HttpMethod'
+        accessControlAllowOrigin:
+          nullable: true
+          type: string
+        accessControlExposeHeaders:
+          type: array
+          items:
+            type: string
+        accessControlMaxAge:
+          type: integer
+          format: int64
+        accessControlRequestHeaders:
+          type: array
+          items:
+            type: string
+        accessControlRequestMethod:
+          nullable: true
+          $ref: '#/components/schemas/HttpMethod'
+        acceptCharset:
+          type: array
+          items:
+            $ref: '#/components/schemas/Charset'
+        allow:
+          type: array
+          items:
+            $ref: '#/components/schemas/HttpMethod'
+        cacheControl:
+          nullable: true
+          type: string
+        connection:
+          type: array
+          items:
+            type: string
+        contentDisposition:
+          $ref: '#/components/schemas/ContentDisposition'
+        contentLanguage:
+          nullable: true
+          $ref: '#/components/schemas/Locale'
+        contentLength:
+          type: integer
+          format: int64
+        contentType:
+          nullable: true
+          $ref: '#/components/schemas/MediaType'
+        date:
+          type: integer
+          format: int64
+        etag:
+          nullable: true
+          type: string
+        expires:
+          type: integer
+          format: int64
+        host:
+          nullable: true
+          $ref: '#/components/schemas/InetSocketAddress'
+        ifMatch:
+          type: array
+          items:
+            type: string
+        ifModifiedSince:
+          type: integer
+          format: int64
+        ifNoneMatch:
+          type: array
+          items:
+            type: string
+        ifUnmodifiedSince:
+          type: integer
+          format: int64
+        lastModified:
+          type: integer
+          format: int64
+        location:
+          nullable: true
+          $ref: '#/components/schemas/URI'
+        origin:
+          nullable: true
+          type: string
+        pragma:
+          nullable: true
+          type: string
+        range:
+          type: array
+          items:
+            $ref: '#/components/schemas/HttpRange'
+        upgrade:
+          nullable: true
+          type: string
+        vary:
+          type: array
+          items:
+            type: string
+        empty:
+          type: boolean
+    StreamingResponseBody:
+      type: object
+      properties:
+    Dynamic_Permission:
+      type: object
+      properties:
+        permId:
+          description: 权限ID
+          type: integer
+          format: int32
+        permName:
+          description: '权限标识（如user:create）'
+          type: string
+        permDesc:
+          description: 权限描述
+          nullable: true
+          type: string
+        createTime:
+          description: 创建时间
+          nullable: true
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dynamic_Role'
+    MediaType:
+      type: object
+      properties:
+        qualityValue:
+          type: number
+          format: double
+        wildcardType:
+          type: boolean
+        wildcardSubtype:
+          type: boolean
+        concrete:
+          type: boolean
+        type:
+          type: string
+        subtype:
+          type: string
+        subtypeSuffix:
+          nullable: true
+          type: string
+        charset:
+          nullable: true
+          $ref: '#/components/schemas/Charset'
+        parameters:
+          type: object
+          additionalProperties:
+            type: string
+    Locale_LanguageRange:
+      type: object
+      properties:
+        range:
+          type: string
+        weight:
+          type: number
+          format: double
+    Locale:
+      type: object
+      properties:
+        language:
+          type: string
+        script:
+          type: string
+        country:
+          type: string
+        variant:
+          type: string
+        extensionKeys:
+          type: array
+          items:
+            type: string
+        unicodeLocaleAttributes:
+          type: array
+          items:
+            type: string
+        unicodeLocaleKeys:
+          type: array
+          items:
+            type: string
+        iso3language:
+          type: string
+        iso3country:
+          type: string
+        displayLanguage:
+          type: string
+        displayScript:
+          type: string
+        displayCountry:
+          type: string
+        displayVariant:
+          type: string
+        displayName:
+          type: string
+    HttpMethod:
+      type: object
+      properties:
+    Charset:
+      type: object
+      properties:
+        registered:
+          type: boolean
+    ContentDisposition:
+      type: object
+      properties:
+        attachment:
+          type: boolean
+        formData:
+          type: boolean
+        inline:
+          type: boolean
+        type:
+          nullable: true
+          type: string
+        name:
+          nullable: true
+          type: string
+        filename:
+          nullable: true
+          type: string
+        charset:
+          nullable: true
+          $ref: '#/components/schemas/Charset'
+        size:
+          nullable: true
+          type: integer
+          format: int64
+        creationDate:
+          nullable: true
+          type: string
+        modificationDate:
+          nullable: true
+          type: string
+        readDate:
+          nullable: true
+          type: string
+    InetSocketAddress:
+      type: object
+      properties:
+        port:
+          type: integer
+          format: int32
+        address:
+          $ref: '#/components/schemas/InetAddress'
+        hostName:
+          type: string
+        hostString:
+          type: string
+        unresolved:
+          type: boolean
+    URI:
+      type: object
+      properties:
+        scheme:
+          type: string
+        absolute:
+          type: boolean
+        opaque:
+          type: boolean
+        rawSchemeSpecificPart:
+          type: string
+        schemeSpecificPart:
+          type: string
+        rawAuthority:
+          type: string
+        authority:
+          type: string
+        rawUserInfo:
+          type: string
+        userInfo:
+          type: string
+        host:
+          type: string
+        port:
+          type: integer
+          format: int32
+        rawPath:
+          type: string
+        path:
+          type: string
+        rawQuery:
+          type: string
+        query:
+          type: string
+        rawFragment:
+          type: string
+        fragment:
+          type: string
+    HttpRange:
+      type: object
+      properties:
+    InetAddress:
+      type: object
+      properties:
+        multicastAddress:
+          type: boolean
+        anyLocalAddress:
+          type: boolean
+        loopbackAddress:
+          type: boolean
+        linkLocalAddress:
+          type: boolean
+        siteLocalAddress:
+          type: boolean
+        mcglobal:
+          type: boolean
+        mcnodeLocal:
+          type: boolean
+        mclinkLocal:
+          type: boolean
+        mcsiteLocal:
+          type: boolean
+        mcorgLocal:
+          type: boolean
+        hostName:
+          type: string
+        canonicalHostName:
+          type: string
+        address:
+          type: array
+          items:
+            type: integer
+        hostAddress:
+          type: string
