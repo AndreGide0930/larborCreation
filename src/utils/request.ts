@@ -1,7 +1,7 @@
 // 通用请求函数（使用 Vite 代理，URL 以 /api 开头）
 
 export const request = async (url: string, options: RequestInit & { params?: Record<string, any> } = {}) => {
-  const token = localStorage.getItem('token')
+  // const token = localStorage.getItem('token')
 
   // 登录/验证码接口不携带 token
   const isAuthRequest = url.includes('/auth/') || url.includes('verifyCode')
@@ -13,9 +13,10 @@ export const request = async (url: string, options: RequestInit & { params?: Rec
     )
   }
 
-  if (!isAuthRequest && token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
+  // 暂时注释掉 token 认证
+  // if (!isAuthRequest && token) {
+  //   headers['Authorization'] = `Bearer ${token}`
+  // }
 
   // 处理查询参数
   let finalUrl = url
@@ -40,6 +41,16 @@ export const request = async (url: string, options: RequestInit & { params?: Rec
 
   const response = await fetch(finalUrl, finalOptions)
 
+  // 暂时注释掉 401 未授权处理
+  // if (response.status === 401) {
+  //   localStorage.removeItem('token')
+  //   localStorage.removeItem('userInfo')
+  //   if (!window.location.pathname.includes('/login')) {
+  //     window.location.replace('/login')
+  //   }
+  //   throw new Error('未登录或登录已过期')
+  // }
+
   if (response.status === 413) {
     throw new Error('文件大小超过100MB限制')
   }
@@ -47,15 +58,6 @@ export const request = async (url: string, options: RequestInit & { params?: Rec
     throw new Error('不支持的文件类型')
   }
   
-  if (response.status === 401) {
-    localStorage.removeItem('token')
-    localStorage.removeItem('userInfo')
-    if (!window.location.pathname.includes('/login')) {
-      window.location.replace('/login')
-    }
-    throw new Error('未登录或登录已过期')
-  }
-
   if (!response.ok) {
     const errorText = await response.text()
     throw new Error(errorText || '请求失败')
@@ -68,11 +70,12 @@ export const request = async (url: string, options: RequestInit & { params?: Rec
     try {
       const data = JSON.parse(responseText)
 
-      if (url.includes('verifyCode') && data.token && data.userInfo) {
-        localStorage.setItem('token', data.token)
-        localStorage.setItem('userInfo', JSON.stringify(data.userInfo))
-        window.location.href = '/'
-      }
+      // 暂时注释掉登录成功后的 token 存储
+      // if (url.includes('verifyCode') && data.token && data.userInfo) {
+      //   localStorage.setItem('token', data.token)
+      //   localStorage.setItem('userInfo', JSON.stringify(data.userInfo))
+      //   window.location.href = '/'
+      // }
 
       return data
     } catch {
