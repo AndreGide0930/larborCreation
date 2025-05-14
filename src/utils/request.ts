@@ -40,6 +40,13 @@ export const request = async (url: string, options: RequestInit & { params?: Rec
 
   const response = await fetch(finalUrl, finalOptions)
 
+  if (response.status === 413) {
+    throw new Error('文件大小超过100MB限制')
+  }
+  if (response.status === 415) {
+    throw new Error('不支持的文件类型')
+  }
+  
   if (response.status === 401) {
     localStorage.removeItem('token')
     localStorage.removeItem('userInfo')
@@ -86,6 +93,22 @@ export const post = (url: string, data: any, options: RequestInit = {}) =>
     method: 'POST',
     body: JSON.stringify(data)
   })
+
+export const multipartPost = (url: string, formData: FormData, options: RequestInit = {}) => {
+  const headers = new Headers(options.headers)
+  // 删除所有 Content-Type 相关的头部，让浏览器自动处理
+  headers.delete('Content-Type')
+  
+  // const boundary = '----WebKitFormBoundary' + Math.random().toString(36).substring(2)
+  // headers.append('Content-Type', `multipart/form-data; boundary=${boundary}`)
+  
+  return request(url, {
+    ...options,
+    method: 'POST',
+    body: formData,
+    headers
+  })
+}
 
 export const put = (url: string, data: any, options: RequestInit = {}) =>
   request(url, {

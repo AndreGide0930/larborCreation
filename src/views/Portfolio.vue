@@ -1,31 +1,26 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { request } from '../utils/request'
+import { request, multipartPost } from '../utils/request'
 import { useAuthStore } from '../stores/auth'
 
-interface DoneWork {
-  id: number
-  name: string
-  type: string
-  cweight: number
-  cpriority: number
-  createTime: string
-  updateTime: string
-  description?: string
+interface Work {
+  pkCreation?: number
+  cName: string
+  cWeight: number
+  cPriority: number
+  cSynopsis?: string
+  cUrl?: string
+  fkUserInfo?: any
 }
 
-const DoneWorks = ref<DoneWork[]>([])
+const works = ref<Work[]>([])
 const showUploadForm = ref(false)
-const newDoneWork = ref<DoneWork>({
-  id: 0,
-  name: '',
-  type: 'notes',
-  cweight: 0,
-  cpriority: 3,
-  createTime: new Date().toISOString(),
-  updateTime: new Date().toISOString(),
-  description: ''
+const newWork = ref<Work>({
+  cName: '',
+  cWeight: 0,
+  cPriority: 3,
+  cSynopsis: ''
 })
 const selectedFile = ref<File | null>(null)
 const loading = ref(false)
@@ -50,7 +45,16 @@ const priorityColors = {
   5: 'bg-red-100 text-red-600'
 }
 
-const fetchDoneWorks = async () => {
+const resetForm = () => {
+  newWork.value = {
+    cName: '',
+    cWeight: 0,
+    cPriority: 3,
+    cSynopsis: ''
+  }
+  selectedFile.value = null
+}
+const fetchWorks = async () => {
   loading.value = true
   error.value = ''
   
@@ -60,7 +64,7 @@ const fetchDoneWorks = async () => {
         pkUserInfo: userInfo.value.pkUserInfo
       }
     })
-    DoneWorks.value = data
+    works.value = data
   } catch (err: unknown) {
     if (err instanceof Error) {
       error.value = err.message
@@ -70,51 +74,88 @@ const fetchDoneWorks = async () => {
     } else {
       error.value = '加载失败，请稍后重试'
     }
-    console.error('Error fetching DoneWorks:', err)
+    console.error('Error fetching works:', err)
   } finally {
     loading.value = false
   }
 }
 
-onMounted(() => {
-  fetchDoneWorks()
-})
-
 const handleFileSelect = (event: Event) => {
-  const input = event.target as HTMLInputElement
-  if (input.files && input.files[0]) {
-    selectedFile.value = input.files[0]
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file) return
+
+  // 添加类型校验
+  const validTypes = ['image/jpeg', 'image/png', 'application/pdf', 'video/mp4', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+  if (!validTypes.includes(file.type)) {
+    error.value = '仅支持JPEG/PNG/PDF/MP4/DOCX/XLSX格式'
+    return
+  }
+
+  // 检查文件大小（100MB限制）
+  if (file.size > 100 * 1024 * 1024) {
+    error.value = '文件大小不能超过100MB'
+    return
+  }
+
+  selectedFile.value = file
+  newWork.value.cWeight = Number((file.size / (1024 * 1024)).toFixed(2))
+  newWork.value.cName = file.name
+}
+
+const uploadWork = async () => {
+  if (!selectedFile.value) {
+    error.value = '请选择要上传的文件'
+    return
+  }
+
+  loading.value = true
+  error.value = ''
+
+  try {
+    const formData = new FormData()
+    formData.append('file', selectedFile.value)
+    
+    // 创建 input 对象，完全匹配成功案例的格式
+    const inputData = {
+      cName: newWork.value.cName,
+      fkUserInfo: {
+        pkUserInfo: Number(userInfo.value.pkUserInfo)
+      },
+      cWeight: newWork.value.cWeight,
+      cPriority: newWork.value.cPriority,
+      cSynopsis: newWork.value.cSynopsis || ''
+    }
+    
+    // 将 input 对象作为字符串添加到 FormData
+    formData.append('input', JSON.stringify(inputData))
+
+    console.log('Uploading file:', selectedFile.value.name)
+    console.log('Input data:', inputData)
+
+    const response = await multipartPost('/api/worksUpload', formData)
+
+    if (response) {
+      await fetchWorks()
+      showUploadForm.value = false
+      resetForm()
+    }
+  } catch (err) {
+    console.error('Upload error:', err)
+    error.value = err instanceof Error ? err.message : '上传失败'
+  } finally {
+    loading.value = false
   }
 }
 
-const addDoneWork = () => {
-  const DoneWorkToAdd: DoneWork = {
-    ...newDoneWork.value,
-    id: Date.now(),
-    createTime: new Date().toISOString(),
-    updateTime: new Date().toISOString()
+const previewWork = (work: Work) => {
+  if (work.pkCreation) {
+    window.open(`/api/preview?pkCreation=${work.pkCreation}`, '_blank')
   }
-  
-  DoneWorks.value.unshift(DoneWorkToAdd)
-  
-  newDoneWork.value = {
-    id: 0,
-    name: '',
-    type: 'notes',
-    cweight: 0,
-    cpriority: 3,
-    createTime: new Date().toISOString(),
-    updateTime: new Date().toISOString(),
-    description: ''
-  }
-  selectedFile.value = null
-  showUploadForm.value = false
 }
-
-const handleLogout = async () => {
-  await authStore.signOut()
-  router.push('/login')
-}
+onMounted(() => {
+  fetchWorks()
+  resetForm() // 初始化表单状态
+})
 </script>
 
 <template>
@@ -156,28 +197,25 @@ const handleLogout = async () => {
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <div 
-        v-for="DoneWork in DoneWorks" 
-        :key="DoneWork.id"
+        v-for="work in works" 
+        :key="work.pkCreation"
         class="neumorphic rounded-lg overflow-hidden hover:scale-105 transition-transform cursor-pointer"
+        @click="previewWork(work)"
       >
         <div class="p-4">
           <div class="flex justify-between items-start mb-2">
-            <h3 class="text-xl">{{ DoneWork.name }}</h3>
+            <h3 class="text-xl">{{ work.cName }}</h3>
             <span 
               class="text-sm px-2 py-1 rounded-full"
-              :class="priorityColors[DoneWork.cpriority as keyof typeof priorityColors]"
+              :class="priorityColors[work.cPriority as keyof typeof priorityColors]"
             >
-              {{ priorityLabels[DoneWork.cpriority as keyof typeof priorityLabels] }}
+              {{ priorityLabels[work.cPriority as keyof typeof priorityLabels] }}
             </span>
           </div>
           <div class="flex gap-2 mb-2">
-            <span class="glass px-2 py-1 rounded-full text-sm">{{ DoneWork.type }}</span>
-            <span class="glass px-2 py-1 rounded-full text-sm">权重: {{ DoneWork.cweight }}</span>
+            <span class="glass px-2 py-1 rounded-full text-sm">大小: {{ work.cWeight }}MB</span>
           </div>
-          <p v-if="DoneWork.description" class="mt-2 text-sm opacity-75">{{ DoneWork.description }}</p>
-          <div class="mt-2 text-xs text-brand-blue/60 dark:text-white/60">
-            更新时间: {{ new Date(DoneWork.updateTime).toLocaleDateString() }}
-          </div>
+          <p v-if="work.cSynopsis" class="mt-2 text-sm opacity-75">{{ work.cSynopsis }}</p>
         </div>
       </div>
     </div>
@@ -188,33 +226,20 @@ const handleLogout = async () => {
       @click.self="showUploadForm = false"
     >
       <form 
-        @submit.prevent="addDoneWork"
+        @submit.prevent="uploadWork"
         class="neumorphic p-6 rounded-lg w-full max-w-md"
       >
-        <h2 class="text-2xl mb-6 bg-gradient-to-r from-brand-orange to-brand-mint bg-clip-text text-transparent">添加新作品</h2>
+        <h2 class="text-2xl mb-6 bg-gradient-to-r from-brand-orange to-brand-mint bg-clip-text text-transparent">上传新作品</h2>
         
         <div class="space-y-4">
           <div>
             <label class="block mb-1">作品名称</label>
             <input 
-              v-model="newDoneWork.name"
+              v-model="newWork.cName"
               type="text"
               required
               class="glass w-full p-2 rounded-lg"
             >
-          </div>
-
-          <div>
-            <label class="block mb-1">类型</label>
-            <select 
-              v-model="newDoneWork.type"
-              class="glass w-full p-2 rounded-lg"
-            >
-              <option value="notes">笔记</option>
-              <option value="assignment">作业</option>
-              <option value="DoneWork">项目</option>
-              <option value="research">研究</option>
-            </select>
           </div>
 
           <div>
@@ -228,13 +253,13 @@ const handleLogout = async () => {
                 <input 
                   type="radio" 
                   :value="n"
-                  v-model="newDoneWork.cpriority"
+                  v-model="newWork.cPriority"
                   class="sr-only"
                 >
                 <div 
                   class="text-center p-2 rounded-lg transition-all"
                   :class="[
-                    newDoneWork.cpriority === n 
+                    newWork.cPriority === n 
                       ? priorityColors[n as keyof typeof priorityColors] 
                       : 'glass hover:bg-brand-orange/10'
                   ]"
@@ -244,25 +269,28 @@ const handleLogout = async () => {
               </label>
             </div>
             <div class="text-sm text-center mt-1 text-brand-blue/60 dark:text-white/60">
-              {{ priorityLabels[newDoneWork.cpriority as keyof typeof priorityLabels] }}
+              {{ priorityLabels[newWork.cPriority as keyof typeof priorityLabels] }}
             </div>
           </div>
 
           <div>
-            <label class="block mb-1">权重</label>
+            <label class="block mb-1">文件</label>
             <input 
-              v-model="newDoneWork.cweight"
-              type="number"
-              min="0"
+              type="file"
+              @change="handleFileSelect"
               required
               class="glass w-full p-2 rounded-lg"
+              accept=".jpg,.jpeg,.png,.pdf,.mp4,.docx,.xlsx"
             >
+            <div v-if="selectedFile" class="mt-2 text-sm text-brand-blue/60 dark:text-white/60">
+              已选择: {{ selectedFile.name }} ({{ newWork.cWeight }}MB)
+            </div>
           </div>
 
           <div>
             <label class="block mb-1">描述</label>
             <textarea 
-              v-model="newDoneWork.description"
+              v-model="newWork.cSynopsis"
               rows="3"
               class="glass w-full p-2 rounded-lg"
             ></textarea>
@@ -273,13 +301,15 @@ const handleLogout = async () => {
           <button 
             type="submit"
             class="glass px-6 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors flex-1"
+            :disabled="loading || !selectedFile"
           >
-            添加作品
+            {{ loading ? '上传中...' : '上传作品' }}
           </button>
           <button 
             type="button"
             @click="showUploadForm = false"
             class="glass px-6 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
+            :disabled="loading"
           >
             取消
           </button>

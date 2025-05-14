@@ -57,25 +57,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Dynamic_UserInfo'
-  /StreamDownload:
-    get:
-      tags:
-        - WorksController
-      operationId: streamDownload
-      parameters:
-        - name: pkCreation
-          in: query
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        200:
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ResponseEntity_StreamingResponseBody'
   /UpdateUser:
     post:
       tags:
@@ -285,6 +266,49 @@ paths:
       responses:
         200:
           description: OK
+  /createWorks:
+    post:
+      tags:
+        - WorksController
+      operationId: createWorks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dynamic_Creation'
+        required: true
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dynamic_Creation'
+  /createWorks/{pkUserinfo}:
+    post:
+      tags:
+        - WorksController
+      operationId: createWorksWithPkUserInfo
+      parameters:
+        - name: pkUserinfo
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dynamic_Creation'
+        required: true
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dynamic_Creation'
   /delete:
     delete:
       tags:
@@ -355,7 +379,7 @@ paths:
           schema:
             type: integer
             format: int64
-        - name: pathName
+        - name: downLoadPath
           in: query
           required: true
           schema:
@@ -382,6 +406,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Dynamic_Creation'
+  /preview:
+    get:
+      tags:
+        - WorksController
+      operationId: previewFile
+      parameters:
+        - name: pkCreation
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_StreamingResponseBody'
   /readAllWorkById:
     get:
       tags:
@@ -593,20 +636,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResponseEntity_Object'
-  /worksUpload:
-    post:
-      tags:
-        - WorksController
-      operationId: AliOssUpload
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Dynamic_Creation'
-        required: true
-      responses:
-        200:
-          description: OK
   /{pkUserInfo}:
     get:
       tags:
@@ -632,7 +661,6 @@ components:
   schemas:
     Dynamic_UserInfo:
       type: object
-      description: Entity for table "user_info"
       properties:
         pkUserInfo:
           type: integer
@@ -671,19 +699,6 @@ components:
         role:
           nullable: true
           $ref: '#/components/schemas/Dynamic_Role'
-    ResponseEntity_StreamingResponseBody:
-      type: object
-      properties:
-        statusCode:
-          $ref: '#/components/schemas/HttpStatusCode'
-        statusCodeValue:
-          type: integer
-          format: int32
-        headers:
-          $ref: '#/components/schemas/HttpHeaders'
-        body:
-          nullable: true
-          $ref: '#/components/schemas/StreamingResponseBody'
     ResponseEntity_Object:
       type: object
       properties:
@@ -821,6 +836,19 @@ components:
         updateTime:
           nullable: true
           type: string
+    ResponseEntity_StreamingResponseBody:
+      type: object
+      properties:
+        statusCode:
+          $ref: '#/components/schemas/HttpStatusCode'
+        statusCodeValue:
+          type: integer
+          format: int32
+        headers:
+          $ref: '#/components/schemas/HttpHeaders'
+        body:
+          nullable: true
+          $ref: '#/components/schemas/StreamingResponseBody'
     Dynamic_Role:
       type: object
       properties:
