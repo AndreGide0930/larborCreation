@@ -54,6 +54,7 @@ const resetForm = () => {
   }
   selectedFile.value = null
 }
+
 const fetchWorks = async () => {
   loading.value = true
   error.value = ''
@@ -152,6 +153,7 @@ const previewWork = (work: Work) => {
     window.open(`/api/preview?pkCreation=${work.pkCreation}`, '_blank')
   }
 }
+
 onMounted(() => {
   fetchWorks()
   resetForm() // 初始化表单状态
