@@ -72,9 +72,12 @@ export const post = (url: string, data: any, options: RequestInit = {}) =>
   })
 
 export const multipartPost = (url: string, formData: FormData, options: RequestInit = {}) => {
+  // 创建新的 Headers 对象
   const headers = new Headers(options.headers)
-  headers.delete('Content-Type')
   
+  // 删除 Content-Type 头，让浏览器自动设置正确的 boundary
+  headers.delete('Content-Type')
+
   return request(url, {
     ...options,
     method: 'POST',
