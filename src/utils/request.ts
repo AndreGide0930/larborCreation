@@ -4,7 +4,7 @@ export const request = async (url: string, options: RequestInit & { params?: Rec
   const token = localStorage.getItem('token')
 
   // 登录/验证码接口不携带 token
-  const isAuthRequest = url.includes('/auth/') || url.includes('verifyCode')
+  const isAuthRequest = url.includes('/*') || url.includes('verifyCode')
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
