@@ -1,14 +1,19 @@
 // 通用请求函数（使用 Vite 代理，URL 以 /api 开头）
 
 export const request = async (url: string, options: RequestInit & { params?: Record<string, any> } = {}) => {
+  const token = localStorage.getItem('token')
+
   // 登录/验证码接口不携带 token
   const isAuthRequest = url.includes('/auth/') || url.includes('verifyCode')
 
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...Object.fromEntries(
       new Headers(options.headers).entries()
     )
+  }
+
+  if (!isAuthRequest && token) {
+    headers['Authorization'] = `Bearer ${token}`
   }
 
   // 处理查询参数
@@ -40,6 +45,15 @@ export const request = async (url: string, options: RequestInit & { params?: Rec
   if (response.status === 415) {
     throw new Error('不支持的文件类型')
   }
+  
+  if (response.status === 401) {
+    localStorage.removeItem('token')
+    localStorage.removeItem('userInfo')
+    if (!window.location.pathname.includes('/login')) {
+      window.location.replace('/login')
+    }
+    throw new Error('未登录或登录已过期')
+  }
 
   if (!response.ok) {
     const errorText = await response.text()
@@ -51,7 +65,15 @@ export const request = async (url: string, options: RequestInit & { params?: Rec
 
   if (contentType?.includes('application/json')) {
     try {
-      return JSON.parse(responseText)
+      const data = JSON.parse(responseText)
+
+      if (url.includes('verifyCode') && data.token && data.userInfo) {
+        localStorage.setItem('token', data.token)
+        localStorage.setItem('userInfo', JSON.stringify(data.userInfo))
+        window.location.href = '/'
+      }
+
+      return data
     } catch {
       return responseText
     }
@@ -68,21 +90,23 @@ export const post = (url: string, data: any, options: RequestInit = {}) =>
   request(url, {
     ...options,
     method: 'POST',
-    body: JSON.stringify(data)
+    body: JSON.stringify(data),
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers
+    }
   })
 
-export const multipartPost = (url: string, formData: FormData, options: RequestInit = {}) => {
-  // 创建新的 Headers 对象
-  const headers = new Headers(options.headers)
-  
-  // 删除 Content-Type 头，让浏览器自动设置正确的 boundary
-  headers.delete('Content-Type')
 
+export const multipartPost = (url: string, formData: FormData, options: RequestInit = {}) => {
+  const { headers, ...restOptions } = options
   return request(url, {
-    ...options,
+    ...restOptions,
     method: 'POST',
     body: formData,
-    headers
+    headers: {
+      ...headers,
+    }
   })
 }
 

@@ -406,25 +406,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Dynamic_Creation'
-  /preview:
-    get:
-      tags:
-        - WorksController
-      operationId: previewFile
-      parameters:
-        - name: pkCreation
-          in: query
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        200:
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ResponseEntity_StreamingResponseBody'
   /readAllWorkById:
     get:
       tags:
@@ -714,6 +695,7 @@ components:
           type: object
     Dynamic_Creation:
       type: object
+      description: Entity for table "creation"
       properties:
         pkCreation:
           type: integer
@@ -815,6 +797,7 @@ components:
           format: int32
     WorkInput:
       type: object
+      description: Entity for table "creation"
       properties:
         pkCreation:
           nullable: true
@@ -836,19 +819,6 @@ components:
         updateTime:
           nullable: true
           type: string
-    ResponseEntity_StreamingResponseBody:
-      type: object
-      properties:
-        statusCode:
-          $ref: '#/components/schemas/HttpStatusCode'
-        statusCodeValue:
-          type: integer
-          format: int32
-        headers:
-          $ref: '#/components/schemas/HttpHeaders'
-        body:
-          nullable: true
-          $ref: '#/components/schemas/StreamingResponseBody'
     Dynamic_Role:
       type: object
       properties:
@@ -1016,9 +986,6 @@ components:
             type: string
         empty:
           type: boolean
-    StreamingResponseBody:
-      type: object
-      properties:
     Dynamic_Permission:
       type: object
       properties:

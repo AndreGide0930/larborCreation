@@ -12,10 +12,13 @@ interface Work {
   cSynopsis?: string
   cUrl?: string
   fkUserInfo?: any
+  createTime?: string
 }
 
 const works = ref<Work[]>([])
 const showUploadForm = ref(false)
+const showDeleteConfirm = ref(false)
+const workToDelete = ref<Work | null>(null)
 const newWork = ref<Work>({
   cName: '',
   cWeight: 0,
@@ -148,15 +151,79 @@ const uploadWork = async () => {
   }
 }
 
-const previewWork = (work: Work) => {
+// const previewWork = (work: Work) => {
+//   if (work.pkCreation) {
+//     window.open(`/api/preview?pkCreation=${work.pkCreation}`, '_blank')
+//   }
+// }
+
+// 添加新的预览状态
+const previewUrl = ref('')
+const showPreview = ref(false)
+const previewPosition = ref({ x: 0, y: 0 })
+
+const handleWorkHover = (work: Work, event: MouseEvent) => {
   if (work.pkCreation) {
-    window.open(`/api/preview?pkCreation=${work.pkCreation}`, '_blank')
+    previewUrl.value = `/api/preview?pkCreation=${work.pkCreation}`
+    showPreview.value = true
+    // 计算预览框的位置，确保不会超出视口
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    
+    // 默认显示在鼠标右侧
+    let x = rect.right + 10
+    let y = rect.top
+    
+    // 如果右侧空间不足，则显示在左侧
+    if (x + 400 > viewportWidth) {
+      x = rect.left - 410
+    }
+    
+    // 如果底部空间不足，则向上偏移
+    if (y + 300 > viewportHeight) {
+      y = viewportHeight - 310
+    }
+    
+    previewPosition.value = { x, y }
+  }
+}
+
+const handleWorkLeave = () => {
+  showPreview.value = false
+}
+
+const handleDelete = async (work: Work) => {
+  workToDelete.value = work
+  showDeleteConfirm.value = true
+}
+
+const confirmDelete = async () => {
+  if (!workToDelete.value?.pkCreation) return
+  
+  loading.value = true
+  error.value = ''
+  
+  try {
+    await request(`/api/delete/${workToDelete.value.pkCreation}`, { // 使用路径参数
+  method: 'DELETE'
+})
+
+    
+    await fetchWorks()
+    showDeleteConfirm.value = false
+    workToDelete.value = null
+  } catch (err) {
+    console.error('Delete error:', err)
+    error.value = err instanceof Error ? err.message : '删除失败'
+  } finally {
+    loading.value = false
   }
 }
 
 onMounted(() => {
   fetchWorks()
-  resetForm() // 初始化表单状态
+  resetForm()
 })
 </script>
 
@@ -201,25 +268,83 @@ onMounted(() => {
       <div 
         v-for="work in works" 
         :key="work.pkCreation"
-        class="neumorphic rounded-lg overflow-hidden hover:scale-105 transition-transform cursor-pointer"
-        @click="previewWork(work)"
+        class="neumorphic rounded-lg overflow-hidden hover:scale-105 transition-transform cursor-pointer relative group"
+        @mouseenter="handleWorkHover(work, $event)"
+        @mouseleave="handleWorkLeave"
       >
         <div class="p-4">
-          <div class="flex justify-between items-start mb-2">
-            <h3 class="text-xl">{{ work.cName }}</h3>
+          <!-- 标题和优先级 -->
+          <div class="flex justify-between items-start mb-3">
+            <h3 class="text-xl font-medium truncate max-w-[70%]">{{ work.cName }}</h3>
             <span 
-              class="text-sm px-2 py-1 rounded-full"
+              class="text-sm px-2 py-1 rounded-full whitespace-nowrap"
               :class="priorityColors[work.cPriority as keyof typeof priorityColors]"
             >
               {{ priorityLabels[work.cPriority as keyof typeof priorityLabels] }}
             </span>
           </div>
-          <div class="flex gap-2 mb-2">
-            <span class="glass px-2 py-1 rounded-full text-sm">大小: {{ work.cWeight }}MB</span>
+
+          <!-- 文件信息 -->
+          <div class="flex flex-wrap gap-2 mb-3">
+            <span class="glass px-2 py-1 rounded-full text-sm">
+              <i class="fas fa-weight-hanging mr-1"></i>
+              {{ work.cWeight }}MB
+            </span>
+            <span class="glass px-2 py-1 rounded-full text-sm">
+              <i class="fas fa-calendar-alt mr-1"></i>
+              {{ new Date(work.createTime || '').toLocaleDateString() }}
+            </span>
           </div>
-          <p v-if="work.cSynopsis" class="mt-2 text-sm opacity-75">{{ work.cSynopsis }}</p>
+
+          <!-- 描述 -->
+          <div v-if="work.cSynopsis" class="mt-2">
+            <p class="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
+              {{ work.cSynopsis }}
+            </p>
+          </div>
+
+          <!-- 文件类型图标和删除按钮 -->
+          <div class="absolute bottom-2 right-2 flex items-center gap-2">
+            <button 
+              v-if="work.pkCreation"
+              @click.stop="handleDelete(work)"
+              class="bg-red-500 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-all p-2 rounded-full shadow-md hover:shadow-lg"
+            >
+              <i class="fas fa-trash-alt"></i>
+            </button>
+            <i 
+              :class="{
+                'fas fa-file-pdf text-red-500': work.cName?.toLowerCase().endsWith('.pdf'),
+                'fas fa-file-image text-blue-500': work.cName && /\.(jpg|jpeg|png)$/i.test(work.cName),
+                'fas fa-file-video text-purple-500': work.cName?.toLowerCase().endsWith('.mp4'),
+                'fas fa-file-word text-blue-600': work.cName?.toLowerCase().endsWith('.docx'),
+                'fas fa-file-excel text-green-600': work.cName?.toLowerCase().endsWith('.xlsx'),
+                'fas fa-file text-gray-500': true
+              }"
+              class="text-xl"
+            ></i>
+          </div>
         </div>
       </div>
+    </div>
+
+    <!-- 预览框 -->
+    <div 
+      v-if="showPreview"
+      class="fixed z-50 bg-white rounded-lg shadow-xl overflow-hidden"
+      :style="{
+        left: `${previewPosition.x}px`,
+        top: `${previewPosition.y}px`,
+        width: '400px',
+        height: '300px'
+      }"
+    >
+      <iframe 
+        :src="previewUrl" 
+        class="w-full h-full border-0"
+        @mouseenter="showPreview = true"
+        @mouseleave="showPreview = false"
+      ></iframe>
     </div>
 
     <div 
@@ -317,6 +442,36 @@ onMounted(() => {
           </button>
         </div>
       </form>
+    </div>
+
+    <!-- 删除确认对话框 -->
+    <div 
+      v-if="showDeleteConfirm"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm z-50"
+      @click.self="showDeleteConfirm = false"
+    >
+      <div class="neumorphic p-6 rounded-lg w-full max-w-md">
+        <h2 class="text-2xl mb-6 text-red-500">确认删除</h2>
+        <p class="mb-6">
+          确定要删除作品 "{{ workToDelete?.cName }}" 吗？此操作不可恢复。
+        </p>
+        <div class="flex gap-4">
+          <button 
+            @click="confirmDelete"
+            class="glass px-6 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex-1"
+            :disabled="loading"
+          >
+            {{ loading ? '删除中...' : '确认删除' }}
+          </button>
+          <button 
+            @click="showDeleteConfirm = false"
+            class="glass px-6 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
+            :disabled="loading"
+          >
+            取消
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>

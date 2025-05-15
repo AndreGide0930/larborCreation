@@ -33,7 +33,7 @@ public class WorksController {
     private final JSqlClient sqlClient;
     private final CreationTable table = CreationTable.$;
 //    private final CreationRepository creationRepository;
-    String endpoint = "https://oss-cn-chengdu.aliyuncs.com";
+    String endpoint = "oss-cn-chengdu.aliyuncs.com";
     String bucketName = "labor-creation";
     String region = "cn-chengdu";
     public WorksController(JSqlClient sqlClient) {
@@ -74,7 +74,7 @@ public class WorksController {
                     .fetchOne();
         }catch (Exception e){
             e.printStackTrace();
-            throw new RuntimeException("ID有误 或 该不为‘作品’类别\n"+ e);
+            throw new RuntimeException("ID有误 或 该不为'作品'类别\n"+ e);
         }
     }
     //readAll

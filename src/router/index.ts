@@ -15,32 +15,31 @@ const router = createRouter({
       path: '/',
       name: 'portfolio',
       component: Portfolio,
-      // Temporarily remove auth requirement
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: true }
     },
     {
       path: '/tasks',
       name: 'tasks',
       component: Tasks,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: true }
     },
     {
       path: '/schedule',
       name: 'schedule',
       component: Schedule,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: true }
     },
     {
       path: '/pomodoro',
       name: 'pomodoro',
       component: Pomodoro,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: true }
     },
     {
       path: '/profile',
       name: 'profile',
       component: Profile,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: true }
     },
     {
       path: '/login',
@@ -57,9 +56,28 @@ const router = createRouter({
   ]
 })
 
-// Temporarily disable navigation guard
+// Navigation guard
 router.beforeEach((to, from, next) => {
-  next()
+  const authStore = useAuthStore()
+  
+  if (to.matched.some(record => record.meta.requiresAuth)) {
+    if (!authStore.isAuthenticated) {
+      next({
+        path: '/login',
+        query: { redirect: to.fullPath }
+      })
+    } else {
+      next()
+    }
+  } else if (to.matched.some(record => record.meta.guest)) {
+    if (authStore.isAuthenticated) {
+      next('/')
+    } else {
+      next()
+    }
+  } else {
+    next()
+  }
 })
 
 export default router
