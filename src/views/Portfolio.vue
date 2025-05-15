@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { request, multipartPost } from '../utils/request'
 import { useAuthStore } from '../stores/auth'
 
+
 interface Work {
   pkCreation?: number
   cName: string
@@ -221,6 +222,54 @@ const confirmDelete = async () => {
   }
 }
 
+const handleDownload = async (work: Work) => {
+  if (!work.pkCreation) return
+  
+  try {
+    loading.value = true
+    error.value = ''
+
+    // 发起带参数请求
+    const response = await fetch(`/api/fileDownload?pkCreation=${work.pkCreation}`)
+    
+    // 处理错误响应
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null)
+      throw new Error(errorData?.message || `下载失败（状态码 ${response.status}）`)
+    }
+
+    // 获取文件名（优先从响应头获取）
+    const disposition = response.headers.get('Content-Disposition')
+    let filename = work.cName || 'download'
+    if (disposition) {
+      const filenameMatch = disposition.match(/filename\*?=UTF-8''(.+?)(;|$)/i)
+      if (filenameMatch) {
+        filename = decodeURIComponent(filenameMatch[1])
+      }
+    }
+
+    // 创建下载
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename // 使用动态解析的文件名
+    link.style.display = 'none'
+    document.body.appendChild(link)
+    link.click()
+    window.setTimeout(() => {
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    }, 100)
+
+  } catch (err) {
+    console.error('Download error:', err)
+    error.value = err instanceof Error ? err.message : '下载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
 onMounted(() => {
   fetchWorks()
   resetForm()
@@ -303,8 +352,15 @@ onMounted(() => {
             </p>
           </div>
 
-          <!-- 文件类型图标和删除按钮 -->
+          <!-- 文件类型图标和操作按钮 -->
           <div class="absolute bottom-2 right-2 flex items-center gap-2">
+            <button 
+              v-if="work.pkCreation && work.cUrl"
+              @click.stop="handleDownload(work)"
+              class="bg-blue-500 hover:bg-blue-600 text-white opacity-0 group-hover:opacity-100 transition-all p-2 rounded-full shadow-md hover:shadow-lg"
+            >
+              <i class="fas fa-download"></i>
+            </button>
             <button 
               v-if="work.pkCreation"
               @click.stop="handleDelete(work)"
