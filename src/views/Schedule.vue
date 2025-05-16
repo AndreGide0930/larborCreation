@@ -83,10 +83,13 @@ const calendarOptions = computed(() => ({
     hour12: false
   },
   locale: 'zh-cn',
+  initialDate: selectedDate.value, // Set initial date to selected date
   datesSet: async (dateInfo: any) => {
     const newDate = dayjs(dateInfo.start).format('YYYY-MM-DD')
-    selectedDate.value = newDate
-    await loadPlanForDate(newDate)
+    if (newDate !== selectedDate.value) {
+      selectedDate.value = newDate
+      await loadPlanForDate(newDate)
+    }
   }
 }))
 
@@ -175,6 +178,12 @@ const handleDateSelect = async (date: string) => {
   selectedDate.value = date
   showDatePicker.value = false
   await loadPlanForDate(date)
+  
+  // Update calendar date
+  const calendarApi = calendarRef.value?.getApi()
+  if (calendarApi) {
+    calendarApi.gotoDate(date)
+  }
 }
 
 async function handleTimeSlotSelect(selectInfo: any) {
@@ -235,69 +244,6 @@ async function handleEventResize(resizeInfo: any) {
   } catch (e: any) {
     error.value = e.message || '更新任务失败'
     setTimeout(() => error.value = '', 3000)
-  }
-}
-
-async function createTask() {
-  if (!selectedTimeSlot.value || !currentPlan.value) return
-
-  try {
-    loading.value = true
-    error.value = ''
-
-    const taskData = {
-      timeSlice: selectedTimeSlot.value.start,
-      plans: [{
-        pkPlan: currentPlan.value.pkPlan
-      }]
-    }
-
-    await request('/api/createTimedoro', {
-      method: 'POST',
-      body: JSON.stringify(taskData)
-    })
-
-    // Refresh plan data
-    await loadPlanForDate(selectedDate.value)
-
-    // Reset form and close modal
-    newTask.value = {
-      title: '',
-      reminder: {
-        enabled: false,
-        type: 'before',
-        minutes: 15
-      }
-    }
-    showTaskModal.value = false
-  } catch (e: any) {
-    error.value = e.message || '创建任务失败'
-  } finally {
-    loading.value = false
-  }
-}
-
-async function deletePlan() {
-  if (!currentPlan.value) return
-
-  try {
-    loading.value = true
-    error.value = ''
-
-    await request('/api/deletePlan', {
-      method: 'DELETE',
-      params: {
-        pkPlan: currentPlan.value.pkPlan
-      }
-    })
-
-    // 删除成功后清空当前计划
-    currentPlan.value = null
-  } catch (e: any) {
-    console.error('删除计划失败:', e)
-    error.value = e.message || '删除计划失败'
-  } finally {
-    loading.value = false
   }
 }
 
@@ -363,24 +309,12 @@ onMounted(async () => {
             :disabled="loading || isPastDate"
             class="glass px-8 py-4 rounded-xl text-xl hover:bg-brand-orange/10 transition-all duration-300 transform hover:scale-105"
           >
-            {{ loading ? '创建中...' : `开启${isFutureDate ? '未来' : '今日'}计划 (${dayjs(selectedDate).format('MM月DD日')})` }}
+            {{ loading ? '创建中...' : `开启${isFutureDate ? '未来' : '今日'}计划` }}
           </button>
           <p v-if="error && !isPastDate" class="mt-4 text-red-500">{{ error }}</p>
         </div>
 
         <div v-else>
-          <div class="flex justify-between items-center mb-4">
-            <div class="text-lg font-semibold">
-              {{ dayjs(selectedDate).format('YYYY年MM月DD日') }} 的学习计划
-            </div>
-            <button 
-              @click="deletePlan"
-              :disabled="loading"
-              class="glass px-4 py-2 rounded-xl text-red-500 hover:bg-red-500/10 transition-all duration-300"
-            >
-              {{ loading ? '删除中...' : '删除计划' }}
-            </button>
-          </div>
           <FullCalendar
             ref="calendarRef"
             :options="calendarOptions"
@@ -498,3 +432,4 @@ onMounted(async () => {
   @apply border-brand-orange/10 dark:border-white/10;
 }
 </style>
+```
