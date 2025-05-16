@@ -54,11 +54,7 @@ const calendarOptions = computed(() => ({
   slotMinTime: '06:00:00',
   slotMaxTime: '22:00:00',
   slotDuration: '00:30:00',
-  headerToolbar: {
-    left: 'prev,next today',
-    center: 'title',
-    right: 'timeGridDay,timeGridWeek'
-  },
+  headerToolbar: false, // Hide the default toolbar
   buttonText: {
     today: '今天',
     day: '日',
@@ -83,7 +79,7 @@ const calendarOptions = computed(() => ({
     hour12: false
   },
   locale: 'zh-cn',
-  initialDate: selectedDate.value, // Set initial date to selected date
+  initialDate: selectedDate.value,
   datesSet: async (dateInfo: any) => {
     const newDate = dayjs(dateInfo.start).format('YYYY-MM-DD')
     if (newDate !== selectedDate.value) {
@@ -112,12 +108,11 @@ async function loadPlanForDate(date: string) {
     loading.value = true
     error.value = ''
 
-    // 使用 readPlanByDate 获取指定日期的计划
     const plan = await request('/api/readPlanByDate', {
       params: {
         planDate: date
       }
-    }).catch(() => null) // Handle empty result set gracefully
+    }).catch(() => null)
 
     if (plan) {
       currentPlan.value = plan
@@ -164,7 +159,6 @@ async function createPlan() {
       throw new Error('创建计划失败：服务器未返回数据')
     }
 
-    // 创建计划后重新加载计划数据
     await loadPlanForDate(selectedDate.value)
   } catch (e: any) {
     console.error('创建计划失败:', e)
@@ -184,6 +178,11 @@ const handleDateSelect = async (date: string) => {
   if (calendarApi) {
     calendarApi.gotoDate(date)
   }
+}
+
+const goToToday = async () => {
+  const today = dayjs().format('YYYY-MM-DD')
+  await handleDateSelect(today)
 }
 
 async function handleTimeSlotSelect(selectInfo: any) {
@@ -264,19 +263,20 @@ onMounted(async () => {
         </p>
       </div>
 
-      <!-- Date Selection -->
+      <!-- Custom Calendar Toolbar -->
       <div class="neumorphic p-4 rounded-xl flex justify-center items-center gap-4">
         <button 
-          @click="handleDateSelect(dayjs().subtract(1, 'day').format('YYYY-MM-DD'))"
+          @click="handleDateSelect(dayjs(selectedDate).subtract(1, 'day').format('YYYY-MM-DD'))"
           class="glass p-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
+          title="前一天"
         >
-          前一天
+          <span class="text-xl">←</span>
         </button>
         
         <div class="relative">
           <button 
             @click="showDatePicker = !showDatePicker"
-            class="glass px-4 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors min-w-[200px]"
+            class="glass px-6 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors min-w-[200px] text-lg font-semibold"
           >
             {{ dayjs(selectedDate).format('YYYY年MM月DD日') }}
           </button>
@@ -286,15 +286,24 @@ onMounted(async () => {
             type="date"
             :value="selectedDate"
             @change="(e) => handleDateSelect((e.target as HTMLInputElement).value)"
-            class="absolute top-full left-0 mt-2 glass p-2 rounded-lg w-full"
+            class="absolute top-full left-0 mt-2 glass p-2 rounded-lg w-full z-10"
           >
         </div>
 
         <button 
-          @click="handleDateSelect(dayjs().add(1, 'day').format('YYYY-MM-DD'))"
+          @click="handleDateSelect(dayjs(selectedDate).add(1, 'day').format('YYYY-MM-DD'))"
           class="glass p-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
+          title="后一天"
         >
-          后一天
+          <span class="text-xl">→</span>
+        </button>
+
+        <button 
+          @click="goToToday"
+          class="glass px-4 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
+          :class="{ 'bg-brand-orange/10': dayjs(selectedDate).isSame(dayjs(), 'day') }"
+        >
+          今天
         </button>
       </div>
 
@@ -432,4 +441,3 @@ onMounted(async () => {
   @apply border-brand-orange/10 dark:border-white/10;
 }
 </style>
-```
