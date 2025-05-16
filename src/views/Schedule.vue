@@ -73,10 +73,9 @@ const calendarOptions = computed(() => ({
   },
   locale: 'zh-cn',
   datesSet: async (dateInfo: any) => {
-    // When calendar date changes, check if we have a plan for that day
     const newDate = dayjs(dateInfo.start).format('YYYY-MM-DD')
     selectedDate.value = newDate
-    await checkPlanForDate(newDate)
+    await loadPlanForDate(newDate)
   }
 }))
 
@@ -94,7 +93,7 @@ const events = computed(() => {
   }))
 })
 
-async function checkPlanForDate(date: string) {
+async function loadPlanForDate(date: string) {
   try {
     loading.value = true
     error.value = ''
@@ -104,21 +103,32 @@ async function checkPlanForDate(date: string) {
       throw new Error('用户信息不完整，请重新登录')
     }
 
-    // Try to fetch existing plan for the date
+    // First try to get all plans for the user
     const plans = await request('/api/readPlanById', {
       params: {
         pkUserInfo: userInfo.pkUserInfo
       }
     })
 
-    // Find plan for selected date
-    currentPlan.value = Array.isArray(plans) ? 
+    // Find the plan for the selected date
+    const planForDate = Array.isArray(plans) ? 
       plans.find(plan => plan.planDate === date) : 
       null
 
+    if (planForDate) {
+      // If we found a plan, fetch its full details
+      const fullPlan = await request('/api/readPlan', {
+        params: {
+          pkPlan: planForDate.pkPlan
+        }
+      })
+      currentPlan.value = fullPlan
+    } else {
+      currentPlan.value = null
+    }
   } catch (e: any) {
-    console.error('检查计划失败:', e)
-    error.value = e.message || '检查计划失败'
+    console.error('加载计划失败:', e)
+    error.value = e.message || '加载计划失败'
   } finally {
     loading.value = false
   }
@@ -140,8 +150,6 @@ async function createPlan() {
       fkUserInfoId: userInfo.pkUserInfo
     }
 
-    console.log('Creating plan with data:', planData)
-
     const response = await request('/api/createPlan', {
       method: 'POST',
       headers: {
@@ -150,13 +158,12 @@ async function createPlan() {
       body: JSON.stringify(planData)
     })
 
-    console.log('Plan creation response:', response)
-    
     if (!response) {
       throw new Error('创建计划失败：服务器未返回数据')
     }
 
-    currentPlan.value = response
+    // After creating the plan, load its full details
+    await loadPlanForDate(selectedDate.value)
   } catch (e: any) {
     console.error('创建计划失败:', e)
     error.value = e.message || '创建计划失败'
@@ -200,7 +207,7 @@ async function handleEventDrop(dropInfo: any) {
       })
     })
     
-    await checkPlanForDate(selectedDate.value)
+    await loadPlanForDate(selectedDate.value)
   } catch (e: any) {
     error.value = e.message || '更新任务失败'
     setTimeout(() => error.value = '', 3000)
@@ -219,7 +226,7 @@ async function handleEventResize(resizeInfo: any) {
       })
     })
     
-    await checkPlanForDate(selectedDate.value)
+    await loadPlanForDate(selectedDate.value)
   } catch (e: any) {
     error.value = e.message || '更新任务失败'
     setTimeout(() => error.value = '', 3000)
@@ -246,9 +253,9 @@ async function createTask() {
     })
 
     // Refresh plan data
-    await checkPlanForDate(selectedDate.value)
+    await loadPlanForDate(selectedDate.value)
 
-    // Reset form
+    // Reset form and close modal
     newTask.value = {
       title: '',
       reminder: {
@@ -266,7 +273,7 @@ async function createTask() {
 }
 
 onMounted(async () => {
-  await checkPlanForDate(selectedDate.value)
+  await loadPlanForDate(selectedDate.value)
 })
 </script>
 
