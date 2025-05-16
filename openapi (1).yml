@@ -499,6 +499,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Dynamic_Plan'
+  /readPlanByDate:
+    get:
+      tags:
+        - PlanController
+      operationId: readPlanByDate
+      parameters:
+        - name: planDate
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dynamic_Plan'
   /readPlanById:
     get:
       tags:
@@ -616,7 +634,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/WorkInput'
+              $ref: '#/components/schemas/Dynamic_Creation'
         required: true
       responses:
         200:
@@ -671,6 +689,7 @@ components:
   schemas:
     Dynamic_UserInfo:
       type: object
+      description: Entity for table "user_info"
       properties:
         pkUserInfo:
           type: integer
@@ -724,6 +743,7 @@ components:
           type: object
     Dynamic_Creation:
       type: object
+      description: Entity for table "creation"
       properties:
         pkCreation:
           type: integer
@@ -762,6 +782,7 @@ components:
             $ref: '#/components/schemas/Dynamic_Timedoro'
     Dynamic_Plan:
       type: object
+      description: Entity for table "plan"
       properties:
         pkPlan:
           type: integer
@@ -783,6 +804,7 @@ components:
             $ref: '#/components/schemas/Dynamic_Timedoro'
     Dynamic_Remind:
       type: object
+      description: Entity for table "remind"
       properties:
         pkRemind:
           type: integer
@@ -802,6 +824,7 @@ components:
             - Gentle
     Dynamic_Timedoro:
       type: object
+      description: 'Time silice & pomodoro'
       properties:
         pkTimedoro:
           type: integer
@@ -825,6 +848,7 @@ components:
           format: int32
     WorkInput:
       type: object
+      description: Entity for table "creation"
       properties:
         pkCreation:
           nullable: true
@@ -856,6 +880,7 @@ components:
           $ref: '#/components/schemas/StreamingResponseBody'
     Dynamic_Role:
       type: object
+      description: Entity for table "role"
       properties:
         roleId:
           description: 角色ID
@@ -1023,6 +1048,7 @@ components:
           type: boolean
     WorkInput_TargetOf_fkUserInfo:
       type: object
+      description: Entity for table "user_info"
       properties:
         pkUserInfo:
           nullable: true
@@ -1033,6 +1059,7 @@ components:
       properties:
     Dynamic_Permission:
       type: object
+      description: Entity for table "permission"
       properties:
         permId:
           description: 权限ID

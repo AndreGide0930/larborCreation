@@ -37,6 +37,16 @@ const newTask = ref({
   }
 })
 
+const isPastDate = computed(() => {
+  const today = dayjs().startOf('day')
+  return dayjs(selectedDate.value).isBefore(today)
+})
+
+const isFutureDate = computed(() => {
+  const today = dayjs().startOf('day')
+  return dayjs(selectedDate.value).isAfter(today)
+})
+
 const calendarOptions = computed(() => ({
   plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
   initialView: 'timeGridDay',
@@ -103,26 +113,15 @@ async function loadPlanForDate(date: string) {
       throw new Error('用户信息不完整，请重新登录')
     }
 
-    // First try to get all plans for the user
-    const plans = await request('/api/readPlanById', {
+    // 使用 readPlanByDate 接口获取指定日期的计划
+    const plan = await request('/api/readPlanByDate', {
       params: {
-        pkUserInfo: userInfo.pkUserInfo
+        planDate: date
       }
     })
 
-    // Find the plan for the selected date
-    const planForDate = Array.isArray(plans) ? 
-      plans.find(plan => plan.planDate === date) : 
-      null
-
-    if (planForDate) {
-      // If we found a plan, fetch its full details
-      const fullPlan = await request('/api/readPlan', {
-        params: {
-          pkPlan: planForDate.pkPlan
-        }
-      })
-      currentPlan.value = fullPlan
+    if (plan) {
+      currentPlan.value = plan
     } else {
       currentPlan.value = null
     }
@@ -144,6 +143,12 @@ async function createPlan() {
       throw new Error('用户信息不完整，请重新登录')
     }
 
+    // 检查是否为过去日期
+    if (isPastDate.value) {
+      error.value = '不能创建往期计划'
+      return
+    }
+
     const planData = {
       planDate: selectedDate.value,
       planName: `${selectedDate.value} 的学习计划`,
@@ -162,7 +167,7 @@ async function createPlan() {
       throw new Error('创建计划失败：服务器未返回数据')
     }
 
-    // After creating the plan, load its full details
+    // 创建计划后，使用 readPlanByDate 重新获取计划
     await loadPlanForDate(selectedDate.value)
   } catch (e: any) {
     console.error('创建计划失败:', e)
@@ -272,6 +277,30 @@ async function createTask() {
   }
 }
 
+async function deletePlan() {
+  if (!currentPlan.value) return
+
+  try {
+    loading.value = true
+    error.value = ''
+
+    await request('/api/deletePlan', {
+      method: 'DELETE',
+      params: {
+        pkPlan: currentPlan.value.pkPlan
+      }
+    })
+
+    // 删除成功后清空当前计划
+    currentPlan.value = null
+  } catch (e: any) {
+    console.error('删除计划失败:', e)
+    error.value = e.message || '删除计划失败'
+  } finally {
+    loading.value = false
+  }
+}
+
 onMounted(async () => {
   await loadPlanForDate(selectedDate.value)
 })
@@ -291,23 +320,40 @@ onMounted(async () => {
 
       <div class="neumorphic p-8 rounded-3xl">
         <div v-if="!currentPlan" class="text-center py-12">
+          <div v-if="isPastDate" class="text-red-500 mb-4">
+            不能创建往期计划
+          </div>
           <button 
+            v-else
             @click="createPlan"
             :disabled="loading"
             class="glass px-8 py-4 rounded-xl text-xl hover:bg-brand-orange/10 transition-all duration-300 transform hover:scale-105"
           >
-            {{ loading ? '创建中...' : `开启今日计划 (${dayjs(selectedDate).format('MM月DD日')})` }}
+            {{ loading ? '创建中...' : `开启${isFutureDate ? '未来' : '今日'}计划 (${dayjs(selectedDate).format('MM月DD日')})` }}
           </button>
           <p v-if="error" class="mt-4 text-red-500">{{ error }}</p>
         </div>
 
-        <FullCalendar
-          v-else
-          ref="calendarRef"
-          :options="calendarOptions"
-          :events="events"
-          class="calendar-container"
-        />
+        <div v-else>
+          <div class="flex justify-between items-center mb-4">
+            <div class="text-lg font-semibold">
+              {{ dayjs(selectedDate).format('YYYY年MM月DD日') }} 的学习计划
+            </div>
+            <button 
+              @click="deletePlan"
+              :disabled="loading"
+              class="glass px-4 py-2 rounded-xl text-red-500 hover:bg-red-500/10 transition-all duration-300"
+            >
+              {{ loading ? '删除中...' : '删除计划' }}
+            </button>
+          </div>
+          <FullCalendar
+            ref="calendarRef"
+            :options="calendarOptions"
+            :events="events"
+            class="calendar-container"
+          />
+        </div>
       </div>
     </div>
 
