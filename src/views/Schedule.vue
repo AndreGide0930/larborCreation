@@ -26,6 +26,7 @@ const showTaskModal = ref(false)
 const selectedTimeSlot = ref<{ start: string; end: string } | null>(null)
 const loading = ref(false)
 const error = ref('')
+const showDatePicker = ref(false)
 
 // Task creation form
 const newTask = ref({
@@ -170,6 +171,12 @@ async function createPlan() {
   }
 }
 
+const handleDateSelect = async (date: string) => {
+  selectedDate.value = date
+  showDatePicker.value = false
+  await loadPlanForDate(date)
+}
+
 async function handleTimeSlotSelect(selectInfo: any) {
   if (!currentPlan.value) {
     error.value = '请先创建今日计划'
@@ -309,6 +316,40 @@ onMounted(async () => {
         <p class="text-brand-blue/60 dark:text-white/60">
           高效规划你的学习时间
         </p>
+      </div>
+
+      <!-- Date Selection -->
+      <div class="neumorphic p-4 rounded-xl flex justify-center items-center gap-4">
+        <button 
+          @click="handleDateSelect(dayjs().subtract(1, 'day').format('YYYY-MM-DD'))"
+          class="glass p-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
+        >
+          前一天
+        </button>
+        
+        <div class="relative">
+          <button 
+            @click="showDatePicker = !showDatePicker"
+            class="glass px-4 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors min-w-[200px]"
+          >
+            {{ dayjs(selectedDate).format('YYYY年MM月DD日') }}
+          </button>
+          
+          <input 
+            v-if="showDatePicker"
+            type="date"
+            :value="selectedDate"
+            @change="(e) => handleDateSelect((e.target as HTMLInputElement).value)"
+            class="absolute top-full left-0 mt-2 glass p-2 rounded-lg w-full"
+          >
+        </div>
+
+        <button 
+          @click="handleDateSelect(dayjs().add(1, 'day').format('YYYY-MM-DD'))"
+          class="glass p-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
+        >
+          后一天
+        </button>
       </div>
 
       <div class="neumorphic p-8 rounded-3xl">
