@@ -17,6 +17,14 @@ interface Plan {
   timedoroes: any[]
 }
 
+interface Task {
+  pkCreation: number
+  cName: string
+  cType: string
+  cPriority: number
+  cSynopsis?: string
+}
+
 const taskStore = useTaskStore()
 const timerStore = useTimerStore()
 const calendarRef = ref()
@@ -27,6 +35,8 @@ const selectedTimeSlot = ref<{ start: string; end: string } | null>(null)
 const loading = ref(false)
 const error = ref('')
 const showDatePicker = ref(false)
+const availableTasks = ref<Task[]>([])
+const selectedTasks = ref<number[]>([])
 
 // Task creation form
 const newTask = ref({
@@ -54,7 +64,7 @@ const calendarOptions = computed(() => ({
   slotMinTime: '06:00:00',
   slotMaxTime: '22:00:00',
   slotDuration: '00:30:00',
-  headerToolbar: false, // Hide the default toolbar
+  headerToolbar: false,
   buttonText: {
     today: '今天',
     day: '日',
@@ -173,7 +183,6 @@ const handleDateSelect = async (date: string) => {
   showDatePicker.value = false
   await loadPlanForDate(date)
   
-  // Update calendar date
   const calendarApi = calendarRef.value?.getApi()
   if (calendarApi) {
     calendarApi.gotoDate(date)
@@ -191,11 +200,24 @@ async function handleTimeSlotSelect(selectInfo: any) {
     return
   }
   
-  selectedTimeSlot.value = {
-    start: selectInfo.startStr,
-    end: selectInfo.endStr
+  try {
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+    const tasks = await request('/api/readAllWorkById', {
+      params: {
+        pkUserInfo: userInfo.pkUserInfo
+      }
+    })
+    
+    availableTasks.value = tasks.filter((task: Task) => task.cType === 'TODO')
+    selectedTasks.value = []
+    selectedTimeSlot.value = {
+      start: selectInfo.startStr,
+      end: selectInfo.endStr
+    }
+    showTaskModal.value = true
+  } catch (e: any) {
+    error.value = e.message || '加载任务失败'
   }
-  showTaskModal.value = true
 }
 
 async function handleEventClick(clickInfo: any) {
@@ -269,6 +291,38 @@ async function deletePlan() {
   }
 }
 
+async function createTimedoroWithTasks() {
+  if (!selectedTimeSlot.value || !currentPlan.value || selectedTasks.value.length === 0) return
+
+  try {
+    loading.value = true
+    error.value = ''
+
+    const taskData = {
+      timeSlice: selectedTimeSlot.value.start,
+      plans: [{
+        pkPlan: currentPlan.value.pkPlan
+      }],
+      creations: selectedTasks.value.map(taskId => ({
+        pkCreation: taskId
+      }))
+    }
+
+    await request('/api/createTimedoro', {
+      method: 'POST',
+      body: JSON.stringify(taskData)
+    })
+
+    await loadPlanForDate(selectedDate.value)
+    showTaskModal.value = false
+    selectedTasks.value = []
+  } catch (e: any) {
+    error.value = e.message || '创建专注时间失败'
+  } finally {
+    loading.value = false
+  }
+}
+
 onMounted(async () => {
   await loadPlanForDate(selectedDate.value)
 })
@@ -286,7 +340,6 @@ onMounted(async () => {
         </p>
       </div>
 
-      <!-- Custom Calendar Toolbar -->
       <div class="neumorphic p-4 rounded-xl flex justify-between items-center">
         <div class="flex items-center gap-4">
           <button 
@@ -368,41 +421,61 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- Task Creation Modal -->
     <div 
       v-if="showTaskModal"
       class="fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm"
       @click.self="showTaskModal = false"
     >
       <div class="neumorphic p-8 rounded-2xl w-full max-w-md">
-        <h2 class="text-2xl font-bold mb-6">创建专注时间</h2>
+        <h2 class="text-2xl font-bold mb-6">选择任务</h2>
         
-        <form @submit.prevent="createTask" class="space-y-6">
-          <div>
-            <label class="block mb-2">时间段</label>
-            <div class="glass p-3 rounded-xl text-center">
-              {{ dayjs(selectedTimeSlot?.start).format('HH:mm') }} - 
-              {{ dayjs(selectedTimeSlot?.end).format('HH:mm') }}
-            </div>
+        <div class="mb-4">
+          <div class="glass p-3 rounded-xl text-center mb-4">
+            {{ dayjs(selectedTimeSlot?.start).format('HH:mm') }} - 
+            {{ dayjs(selectedTimeSlot?.end).format('HH:mm') }}
           </div>
 
-          <div class="flex gap-4 pt-4">
-            <button
-              type="submit"
-              :disabled="loading"
-              class="flex-1 bg-gradient-to-r from-brand-orange to-brand-mint text-white py-3 rounded-xl font-medium transition-all hover:opacity-90"
+          <div class="max-h-[400px] overflow-y-auto space-y-2">
+            <label 
+              v-for="task in availableTasks" 
+              :key="task.pkCreation"
+              class="glass p-3 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-brand-orange/5 transition-colors"
             >
-              {{ loading ? '创建中...' : '开始专注' }}
-            </button>
-            <button
-              type="button"
-              @click="showTaskModal = false"
-              class="glass px-6 py-3 rounded-xl hover:bg-brand-orange/10 transition-colors"
-            >
-              取消
-            </button>
+              <input 
+                type="checkbox"
+                :value="task.pkCreation"
+                v-model="selectedTasks"
+                class="w-5 h-5 rounded-lg accent-brand-orange"
+              >
+              <div class="flex-1">
+                <div class="font-medium">{{ task.cName }}</div>
+                <div v-if="task.cSynopsis" class="text-sm opacity-75">{{ task.cSynopsis }}</div>
+                <div class="flex gap-2 mt-1">
+                  <span class="text-xs px-2 py-1 rounded-full bg-brand-orange/10 text-brand-orange">
+                    优先级: {{ task.cPriority }}
+                  </span>
+                </div>
+              </div>
+            </label>
           </div>
-        </form>
+        </div>
+
+        <div class="flex gap-4 pt-4">
+          <button
+            @click="createTimedoroWithTasks"
+            :disabled="loading || selectedTasks.length === 0"
+            class="flex-1 bg-gradient-to-r from-brand-orange to-brand-mint text-white py-3 rounded-xl font-medium transition-all hover:opacity-90 disabled:opacity-50"
+          >
+            {{ loading ? '创建中...' : '开始专注' }}
+          </button>
+          <button
+            type="button"
+            @click="showTaskModal = false"
+            class="glass px-6 py-3 rounded-xl hover:bg-brand-orange/10 transition-colors"
+          >
+            取消
+          </button>
+        </div>
       </div>
     </div>
   </div>
