@@ -10,21 +10,11 @@ import dayjs from 'dayjs'
 import { request } from '../utils/request'
 
 interface Plan {
-  id: number
-  date: string
-  tasks: PlanTask[]
-}
-
-interface PlanTask {
-  id: number
-  title: string
-  startTime: string
-  endTime: string
-  reminder?: {
-    time: string
-    type: 'before' | 'fixed'
-    minutes?: number
-  }
+  pkPlan: number
+  planDate: string
+  planName: string
+  fkUserInfoId: number
+  timedoroes: any[]
 }
 
 const taskStore = useTaskStore()
@@ -81,25 +71,58 @@ const calendarOptions = computed(() => ({
     meridiem: false,
     hour12: false
   },
-  locale: 'zh-cn'
+  locale: 'zh-cn',
+  datesSet: async (dateInfo: any) => {
+    // When calendar date changes, check if we have a plan for that day
+    const newDate = dayjs(dateInfo.start).format('YYYY-MM-DD')
+    selectedDate.value = newDate
+    await checkPlanForDate(newDate)
+  }
 }))
 
 const events = computed(() => {
-  if (!currentPlan.value?.tasks) return []
+  if (!currentPlan?.value?.timedoroes) return []
   
-  return currentPlan.value.tasks.map(task => ({
-    id: task.id,
-    title: task.title,
-    start: task.startTime,
-    end: task.endTime,
-    backgroundColor: task.reminder ? '#FF6B6B' : '#4DB6AC',
+  return currentPlan.value.timedoroes.map(timedoro => ({
+    id: timedoro.pkTimedoro,
+    title: timedoro.title || '专注时间',
+    start: timedoro.timeSlice,
+    end: dayjs(timedoro.timeSlice).add(25, 'minutes').format(),
+    backgroundColor: timedoro.sumDone > 0 ? '#4DB6AC' : '#FF6B6B',
     borderColor: 'transparent',
-    textColor: '#ffffff',
-    extendedProps: {
-      reminder: task.reminder
-    }
+    textColor: '#ffffff'
   }))
 })
+
+async function checkPlanForDate(date: string) {
+  try {
+    loading.value = true
+    error.value = ''
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+    
+    if (!userInfo.pkUserInfo) {
+      throw new Error('用户信息不完整，请重新登录')
+    }
+
+    // Try to fetch existing plan for the date
+    const plans = await request('/api/readPlanById', {
+      params: {
+        pkUserInfo: userInfo.pkUserInfo
+      }
+    })
+
+    // Find plan for selected date
+    currentPlan.value = Array.isArray(plans) ? 
+      plans.find(plan => plan.planDate === date) : 
+      null
+
+  } catch (e: any) {
+    console.error('检查计划失败:', e)
+    error.value = e.message || '检查计划失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 async function createPlan() {
   try {
@@ -111,21 +134,20 @@ async function createPlan() {
       throw new Error('用户信息不完整，请重新登录')
     }
 
-    console.log('Creating plan with data:', {
-      date: selectedDate.value,
+    const planData = {
+      planDate: selectedDate.value,
+      planName: `${selectedDate.value} 的学习计划`,
       fkUserInfoId: userInfo.pkUserInfo
-    })
+    }
+
+    console.log('Creating plan with data:', planData)
 
     const response = await request('/api/createPlan', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        planDate: selectedDate.value,
-        planName: `${selectedDate.value} 的学习计划`,
-        fkUserInfoId: userInfo.pkUserInfo
-      })
+      body: JSON.stringify(planData)
     })
 
     console.log('Plan creation response:', response)
@@ -138,13 +160,17 @@ async function createPlan() {
   } catch (e: any) {
     console.error('创建计划失败:', e)
     error.value = e.message || '创建计划失败'
-    setTimeout(() => error.value = '', 3000)
   } finally {
     loading.value = false
   }
 }
 
 async function handleTimeSlotSelect(selectInfo: any) {
+  if (!currentPlan.value) {
+    error.value = '请先创建今日计划'
+    return
+  }
+  
   selectedTimeSlot.value = {
     start: selectInfo.startStr,
     end: selectInfo.endStr
@@ -163,15 +189,18 @@ async function handleEventClick(clickInfo: any) {
 }
 
 async function handleEventDrop(dropInfo: any) {
+  if (!currentPlan.value) return
+  
   try {
-    await request('/api/updateWork', {
-      method: 'POST',
+    await request('/api/updateTimedoro', {
+      method: 'PUT',
       body: JSON.stringify({
-        taskId: dropInfo.event.id,
-        startTime: dropInfo.event.startStr,
-        endTime: dropInfo.event.endStr
+        pkTimedoro: dropInfo.event.id,
+        timeSlice: dropInfo.event.startStr
       })
     })
+    
+    await checkPlanForDate(selectedDate.value)
   } catch (e: any) {
     error.value = e.message || '更新任务失败'
     setTimeout(() => error.value = '', 3000)
@@ -179,15 +208,18 @@ async function handleEventDrop(dropInfo: any) {
 }
 
 async function handleEventResize(resizeInfo: any) {
+  if (!currentPlan.value) return
+  
   try {
-    await request('/api/updateWork', {
-      method: 'POST',
+    await request('/api/updateTimedoro', {
+      method: 'PUT',
       body: JSON.stringify({
-        taskId: resizeInfo.event.id,
-        startTime: resizeInfo.event.startStr,
-        endTime: resizeInfo.event.endStr
+        pkTimedoro: resizeInfo.event.id,
+        timeSlice: resizeInfo.event.startStr
       })
     })
+    
+    await checkPlanForDate(selectedDate.value)
   } catch (e: any) {
     error.value = e.message || '更新任务失败'
     setTimeout(() => error.value = '', 3000)
@@ -202,14 +234,10 @@ async function createTask() {
     error.value = ''
 
     const taskData = {
-      planId: currentPlan.value.id,
-      title: newTask.value.title,
-      startTime: selectedTimeSlot.value.start,
-      endTime: selectedTimeSlot.value.end,
-      reminder: newTask.value.reminder.enabled ? {
-        type: newTask.value.reminder.type,
-        minutes: newTask.value.reminder.minutes
-      } : undefined
+      timeSlice: selectedTimeSlot.value.start,
+      plans: [{
+        pkPlan: currentPlan.value.pkPlan
+      }]
     }
 
     await request('/api/createTimedoro', {
@@ -218,8 +246,7 @@ async function createTask() {
     })
 
     // Refresh plan data
-    const response = await request(`/api/readAllWorkById?planId=${currentPlan.value.id}`)
-    currentPlan.value = response
+    await checkPlanForDate(selectedDate.value)
 
     // Reset form
     newTask.value = {
@@ -233,29 +260,13 @@ async function createTask() {
     showTaskModal.value = false
   } catch (e: any) {
     error.value = e.message || '创建任务失败'
-    setTimeout(() => error.value = '', 3000)
   } finally {
     loading.value = false
   }
 }
 
 onMounted(async () => {
-  try {
-    loading.value = true
-    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-    const response = await request(`/api/readAllWorkById`, {
-      params: {
-        pkUserInfo: userInfo.pkUserInfo,
-        date: selectedDate.value
-      }
-    })
-    currentPlan.value = response
-  } catch (e: any) {
-    error.value = e.message || '加载计划失败'
-    setTimeout(() => error.value = '', 3000)
-  } finally {
-    loading.value = false
-  }
+  await checkPlanForDate(selectedDate.value)
 })
 </script>
 
@@ -300,60 +311,14 @@ onMounted(async () => {
       @click.self="showTaskModal = false"
     >
       <div class="neumorphic p-8 rounded-2xl w-full max-w-md">
-        <h2 class="text-2xl font-bold mb-6">创建学习任务</h2>
+        <h2 class="text-2xl font-bold mb-6">创建专注时间</h2>
         
         <form @submit.prevent="createTask" class="space-y-6">
-          <div>
-            <label class="block mb-2">任务名称</label>
-            <input 
-              v-model="newTask.title"
-              type="text"
-              required
-              class="glass w-full p-3 rounded-xl"
-              placeholder="输入任务名称"
-            >
-          </div>
-
           <div>
             <label class="block mb-2">时间段</label>
             <div class="glass p-3 rounded-xl text-center">
               {{ dayjs(selectedTimeSlot?.start).format('HH:mm') }} - 
               {{ dayjs(selectedTimeSlot?.end).format('HH:mm') }}
-            </div>
-          </div>
-
-          <div class="space-y-4">
-            <label class="flex items-center gap-2">
-              <input
-                v-model="newTask.reminder.enabled"
-                type="checkbox"
-                class="w-5 h-5 rounded-lg accent-brand-orange"
-              >
-              <span>开启提醒</span>
-            </label>
-
-            <div v-if="newTask.reminder.enabled" class="pl-7 space-y-4">
-              <div>
-                <label class="block mb-2">提醒方式</label>
-                <select
-                  v-model="newTask.reminder.type"
-                  class="glass w-full p-3 rounded-xl"
-                >
-                  <option value="before">提前提醒</option>
-                  <option value="fixed">固定时间</option>
-                </select>
-              </div>
-
-              <div v-if="newTask.reminder.type === 'before'">
-                <label class="block mb-2">提前时间（分钟）</label>
-                <input
-                  v-model="newTask.reminder.minutes"
-                  type="number"
-                  min="1"
-                  max="60"
-                  class="glass w-full p-3 rounded-xl"
-                >
-              </div>
             </div>
           </div>
 
@@ -363,7 +328,7 @@ onMounted(async () => {
               :disabled="loading"
               class="flex-1 bg-gradient-to-r from-brand-orange to-brand-mint text-white py-3 rounded-xl font-medium transition-all hover:opacity-90"
             >
-              {{ loading ? '创建中...' : '创建任务' }}
+              {{ loading ? '创建中...' : '开始专注' }}
             </button>
             <button
               type="button"
