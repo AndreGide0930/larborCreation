@@ -475,4 +475,3 @@ onMounted(async () => {
   @apply border-brand-orange/10 dark:border-white/10;
 }
 </style>
-```
