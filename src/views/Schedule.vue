@@ -107,13 +107,8 @@ async function loadPlanForDate(date: string) {
   try {
     loading.value = true
     error.value = ''
-    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-    
-    if (!userInfo.pkUserInfo) {
-      throw new Error('用户信息不完整，请重新登录')
-    }
 
-    // 使用 readPlanByDate 接口获取指定日期的计划
+    // 使用 readPlanByDate 获取指定日期的计划
     const plan = await request('/api/readPlanByDate', {
       params: {
         planDate: date
@@ -124,6 +119,9 @@ async function loadPlanForDate(date: string) {
       currentPlan.value = plan
     } else {
       currentPlan.value = null
+      if (isPastDate.value) {
+        error.value = `${dayjs(date).format('YYYY年MM月DD日')}没有计划记录，无法创建往期计划`
+      }
     }
   } catch (e: any) {
     console.error('加载计划失败:', e)
@@ -167,7 +165,7 @@ async function createPlan() {
       throw new Error('创建计划失败：服务器未返回数据')
     }
 
-    // 创建计划后，使用 readPlanByDate 重新获取计划
+    // 创建计划后重新加载计划数据
     await loadPlanForDate(selectedDate.value)
   } catch (e: any) {
     console.error('创建计划失败:', e)
@@ -321,7 +319,7 @@ onMounted(async () => {
       <div class="neumorphic p-8 rounded-3xl">
         <div v-if="!currentPlan" class="text-center py-12">
           <div v-if="isPastDate" class="text-red-500 mb-4">
-            不能创建往期计划
+            {{ error || '不能创建往期计划' }}
           </div>
           <button 
             v-else
@@ -331,7 +329,7 @@ onMounted(async () => {
           >
             {{ loading ? '创建中...' : `开启${isFutureDate ? '未来' : '今日'}计划 (${dayjs(selectedDate).format('MM月DD日')})` }}
           </button>
-          <p v-if="error" class="mt-4 text-red-500">{{ error }}</p>
+          <p v-if="error && !isPastDate" class="mt-4 text-red-500">{{ error }}</p>
         </div>
 
         <div v-else>
