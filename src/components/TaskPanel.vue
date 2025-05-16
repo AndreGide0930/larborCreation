@@ -5,6 +5,10 @@ import { onMounted, watch } from 'vue'
 const timerStore = useTimerStore()
 
 onMounted(() => {
+  const savedTask = localStorage.getItem('activeTask')
+  if (savedTask) {
+    timerStore.activeTask = JSON.parse(savedTask)
+  }
   console.log('TaskPanel mounted, active task:', timerStore.activeTask)
 })
 
