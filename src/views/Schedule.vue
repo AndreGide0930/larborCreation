@@ -26,7 +26,6 @@ const showTaskModal = ref(false)
 const selectedTimeSlot = ref<{ start: string; end: string } | null>(null)
 const loading = ref(false)
 const error = ref('')
-const showDatePicker = ref(false)
 
 // Task creation form
 const newTask = ref({
@@ -83,7 +82,7 @@ const calendarOptions = computed(() => ({
     hour12: false
   },
   locale: 'zh-cn',
-  initialDate: selectedDate.value, // Set initial date to selected date
+  initialDate: selectedDate.value,
   datesSet: async (dateInfo: any) => {
     const newDate = dayjs(dateInfo.start).format('YYYY-MM-DD')
     if (newDate !== selectedDate.value) {
@@ -112,12 +111,11 @@ async function loadPlanForDate(date: string) {
     loading.value = true
     error.value = ''
 
-    // 使用 readPlanByDate 获取指定日期的计划
     const plan = await request('/api/readPlanByDate', {
       params: {
         planDate: date
       }
-    }).catch(() => null) // Handle empty result set gracefully
+    }).catch(() => null)
 
     if (plan) {
       currentPlan.value = plan
@@ -164,25 +162,12 @@ async function createPlan() {
       throw new Error('创建计划失败：服务器未返回数据')
     }
 
-    // 创建计划后重新加载计划数据
     await loadPlanForDate(selectedDate.value)
   } catch (e: any) {
     console.error('创建计划失败:', e)
     error.value = e.message || '创建计划失败'
   } finally {
     loading.value = false
-  }
-}
-
-const handleDateSelect = async (date: string) => {
-  selectedDate.value = date
-  showDatePicker.value = false
-  await loadPlanForDate(date)
-  
-  // Update calendar date
-  const calendarApi = calendarRef.value?.getApi()
-  if (calendarApi) {
-    calendarApi.gotoDate(date)
   }
 }
 
@@ -262,40 +247,6 @@ onMounted(async () => {
         <p class="text-brand-blue/60 dark:text-white/60">
           高效规划你的学习时间
         </p>
-      </div>
-
-      <!-- Date Selection -->
-      <div class="neumorphic p-4 rounded-xl flex justify-center items-center gap-4">
-        <button 
-          @click="handleDateSelect(dayjs().subtract(1, 'day').format('YYYY-MM-DD'))"
-          class="glass p-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
-        >
-          前一天
-        </button>
-        
-        <div class="relative">
-          <button 
-            @click="showDatePicker = !showDatePicker"
-            class="glass px-4 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors min-w-[200px]"
-          >
-            {{ dayjs(selectedDate).format('YYYY年MM月DD日') }}
-          </button>
-          
-          <input 
-            v-if="showDatePicker"
-            type="date"
-            :value="selectedDate"
-            @change="(e) => handleDateSelect((e.target as HTMLInputElement).value)"
-            class="absolute top-full left-0 mt-2 glass p-2 rounded-lg w-full"
-          >
-        </div>
-
-        <button 
-          @click="handleDateSelect(dayjs().add(1, 'day').format('YYYY-MM-DD'))"
-          class="glass p-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
-        >
-          后一天
-        </button>
       </div>
 
       <div class="neumorphic p-8 rounded-3xl">
@@ -432,4 +383,3 @@ onMounted(async () => {
   @apply border-brand-orange/10 dark:border-white/10;
 }
 </style>
-```
