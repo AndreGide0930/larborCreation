@@ -41,9 +41,11 @@ export const useTimerStore = defineStore('timer', () => {
       notes: '',
       completed: false
     }
+    
+    // Save to store and localStorage
     activeTask.value = newTask
-    // 保存到 localStorage
     localStorage.setItem('activeTask', JSON.stringify(newTask))
+    
     console.log('Active task set to:', activeTask.value)
     router.push('/pomodoro')
   }
@@ -51,7 +53,6 @@ export const useTimerStore = defineStore('timer', () => {
   const updateTaskNotes = (notes: string) => {
     if (activeTask.value) {
       activeTask.value.notes = notes
-      // 更新 localStorage
       localStorage.setItem('activeTask', JSON.stringify(activeTask.value))
     }
   }
@@ -59,9 +60,7 @@ export const useTimerStore = defineStore('timer', () => {
   const toggleTaskCompletion = () => {
     if (activeTask.value) {
       activeTask.value.completed = !activeTask.value.completed
-      // 更新 localStorage
       localStorage.setItem('activeTask', JSON.stringify(activeTask.value))
-      // Update the task in the main task store
       taskStore.updateTask(activeTask.value.id, {
         completed: activeTask.value.completed
       })
@@ -76,14 +75,12 @@ export const useTimerStore = defineStore('timer', () => {
     }
     activeTask.value = null
     taskNotes.value = ''
-    // 清除 localStorage
     localStorage.removeItem('activeTask')
   }
 
   const clearTimer = () => {
     activeTask.value = null
     taskNotes.value = ''
-    // 清除 localStorage
     localStorage.removeItem('activeTask')
   }
 
