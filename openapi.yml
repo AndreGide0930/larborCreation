@@ -309,17 +309,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Dynamic_Creation'
-  /delete:
+  /delete/{pkCreation}:
     delete:
       tags:
         - CreationController
       operationId: deleteCreation
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Dynamic_Creation'
-        required: true
+      parameters:
+        - name: pkCreation
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
       responses:
         200:
           description: OK
@@ -367,6 +368,21 @@ paths:
       responses:
         200:
           description: OK
+  /deleteWork:
+    delete:
+      tags:
+        - WorkController
+      operationId: deleteWork
+      parameters:
+        - name: pkCreation
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
   /fileDownload:
     get:
       tags:
@@ -379,14 +395,13 @@ paths:
           schema:
             type: integer
             format: int64
-        - name: downLoadPath
-          in: query
-          required: true
-          schema:
-            type: string
       responses:
         200:
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_StreamingResponseBody'
   /oneWorks:
     get:
       tags:
@@ -592,6 +607,20 @@ paths:
       responses:
         200:
           description: OK
+  /updateWork:
+    put:
+      tags:
+        - WorkController
+      operationId: updateWork
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkInput'
+        required: true
+      responses:
+        200:
+          description: OK
   /works/{pkCreation}/timedoro/{pkTimedoro}:
     delete:
       tags:
@@ -695,7 +724,6 @@ components:
           type: object
     Dynamic_Creation:
       type: object
-      description: Entity for table "creation"
       properties:
         pkCreation:
           type: integer
@@ -797,28 +825,35 @@ components:
           format: int32
     WorkInput:
       type: object
-      description: Entity for table "creation"
       properties:
         pkCreation:
           nullable: true
           type: integer
           format: int64
+        fkUserInfo:
+          nullable: true
+          $ref: '#/components/schemas/WorkInput_TargetOf_fkUserInfo'
         cname:
           type: string
-        ctype:
-          type: string
-          enum:
-            - TODO
-            - DONE
         cpriority:
           type: integer
           format: int32
         csynopsis:
           nullable: true
           type: string
-        updateTime:
+    ResponseEntity_StreamingResponseBody:
+      type: object
+      properties:
+        statusCode:
+          $ref: '#/components/schemas/HttpStatusCode'
+        statusCodeValue:
+          type: integer
+          format: int32
+        headers:
+          $ref: '#/components/schemas/HttpHeaders'
+        body:
           nullable: true
-          type: string
+          $ref: '#/components/schemas/StreamingResponseBody'
     Dynamic_Role:
       type: object
       properties:
@@ -986,6 +1021,16 @@ components:
             type: string
         empty:
           type: boolean
+    WorkInput_TargetOf_fkUserInfo:
+      type: object
+      properties:
+        pkUserInfo:
+          nullable: true
+          type: integer
+          format: int64
+    StreamingResponseBody:
+      type: object
+      properties:
     Dynamic_Permission:
       type: object
       properties:

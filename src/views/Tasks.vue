@@ -9,12 +9,15 @@ interface TodoItem {
   pkCreation: number
   createTime: string
   updateTime: string | null
-  cname: string
-  csynopsis: string | null
-  cpriority: number // 优先级: 5-紧急且重要, 4-重要但不紧急, 3/2-紧急但不重要, 1-不紧急也不重要
-  ctype: string
-  curl: string
-  cweight: number
+  cName: string  // 改为大写N
+  cSynopsis: string | null
+  cPriority: number // 优先级: 4-紧急且重要, 3-重要但不紧急, 2-紧急但不重要, 1-不紧急也不重要
+  cType: string  // 改为大写T
+  cUrl: string | null  // 改为大写U
+  cWeight: number // 权重: 1-4
+  fkUserInfo: {
+    pkUserInfo: number
+  }
 }
 
 
@@ -32,7 +35,7 @@ const newTask = ref({
   cname: '',
   cpriority: 3,
   ctype: 'TODO',
-  cweight: 0,
+  cweight: 1, // 默认权重为1
   csynopsis: ''
 })
 
@@ -47,7 +50,6 @@ const fetchTodos = async () => {
     })
     console.log('API Response:', todos)
 
-    // 2️⃣ 不再用 response.data，直接判断 response 本身
     if (Array.isArray(todos)) {
       // 清空现有列表
       urgentImportant.value = []
@@ -57,14 +59,13 @@ const fetchTodos = async () => {
 
       // 根据优先级将任务分配到不同象限
       todos.forEach(todo => {
-        switch (todo.cpriority) {
-          case 5:
+        switch (todo.cPriority) {
+          case 4:
             urgentImportant.value.push(todo)
             break
-          case 4:
+          case 3:
             importantNotUrgent.value.push(todo)
             break
-          case 3:
           case 2:
             urgentNotImportant.value.push(todo)
             break
@@ -111,55 +112,88 @@ onMounted(() => {
 })
 const addTask = async () => {
   try {
-    const cName = newTask.value.cname;
-    const cType = newTask.value.ctype;
-    const cPriority = Number(newTask.value.cpriority);
-
-    let cWeight = null;
-    // newTask.cweight can be 0 (default), a user-entered number, or null (if input is cleared)
-    if (newTask.value.cweight !== null && String(newTask.value.cweight).trim() !== '') {
-        cWeight = Number(newTask.value.cweight);
-    }
-
-    let cSynopsis = null;
-    if (newTask.value.csynopsis && newTask.value.csynopsis.trim() !== '') {
-        cSynopsis = newTask.value.csynopsis.trim();
-    }
-
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
     const payload = {
-      cName: cName,
-      cType: cType,
-      cPriority: cPriority,
-      cWeight: cWeight,
-      cSynopsis: cSynopsis
-      // cUrl is not in the form, so it's not included in the payload.
-      // The backend's @Nullable String cUrl() should handle its absence.
-    };
+      cName: newTask.value.cname,
+      fkUserInfo: {
+        pkUserInfo: Number(userInfo.pkUserInfo)
+      },
+      cType: 'TODO',
+      cPriority: Number(newTask.value.cpriority),
+      cSynopsis: newTask.value.csynopsis || ''
+    }
 
-    await axios.post('http://localhost:8080/createWork', payload);
-    await fetchTodos(); // Refresh the task list
+    await axios.post('http://localhost:8080/createWork', payload)
+    await fetchTodos()
 
-    // Reset form and hide modal
+    // 重置表单
     newTask.value = {
       cname: '',
-      cpriority: 3, // Default priority
-      ctype: 'TODO', // Default type
-      cweight: 0,   // Default weight
+      cpriority: 3,
+      ctype: 'TODO',
+      cweight: 1,
       csynopsis: ''
-    };
-    showNewTaskForm.value = false;
+    }
+    showNewTaskForm.value = false
 
   } catch (error) {
-    console.error('创建任务失败:', error);
-    // Consider adding user-facing error notification here
+    console.error('创建任务失败:', error)
   }
 }
 
 const startFocusMode = (task: TodoItem) => {
+  console.log('Starting focus mode with task:', task)
   timerStore.startTimer({
     id: task.pkCreation,
-    title: task.cname
+    title: task.cName,
+    description: task.cSynopsis || '',
+    priority: task.cPriority,
+    type: task.cType
   })
+}
+
+const deleteTask = async (pkCreation: number) => {
+  try {
+    await axios.delete('http://localhost:8080/deleteWork', {
+      params: {
+        pkCreation: pkCreation
+      }
+    })
+    await fetchTodos()
+  } catch (error) {
+    console.error('删除任务失败:', error)
+  }
+}
+
+const updateTask = async (task: TodoItem) => {
+  try {
+    const payload = {
+      pkCreation: task.pkCreation,
+      fkUserInfo: {
+        pkUserInfo: task.fkUserInfo.pkUserInfo
+      },
+      cname: task.cName,
+      cpriority: task.cPriority,
+      csynopsis: task.cSynopsis || ''
+    }
+    await axios.put('http://localhost:8080/updateWork', payload)
+    await fetchTodos()
+  } catch (error) {
+    console.error('更新任务失败:', error)
+  }
+}
+
+const completeTask = async (pkCreation: number) => {
+  try {
+    await axios.post('http://localhost:8080/changeType', null, {
+      params: {
+        pkCreation: pkCreation
+      }
+    })
+    await fetchTodos()
+  } catch (error) {
+    console.error('完成任务失败:', error)
+  }
 }
 </script>
 
@@ -213,24 +247,24 @@ const startFocusMode = (task: TodoItem) => {
               <div class="glass p-4 rounded-xl cursor-move hover:shadow-lg hover:scale-102 transition-all duration-200">
                 <div class="flex items-center gap-3">
                   <div class="flex-1">
-                    <h3 class="font-semibold">{{ task.cname }}</h3>
+                    <h3 class="font-semibold">{{ task.cName }}</h3>
                     <div class="flex items-center gap-2 text-sm opacity-75 mt-1">
                       <span>创建时间: {{ new Date(task.createTime).toLocaleString() }}</span>
                       <span v-if="task.updateTime" class="text-brand-orange">
                         (已更新: {{ new Date(task.updateTime).toLocaleString() }})
                       </span>
                     </div>
-                    <p v-if="task.csynopsis" class="text-sm opacity-75 mt-1">{{ task.csynopsis }}</p>
+                    <p v-if="task.cSynopsis" class="text-sm opacity-75 mt-1">{{ task.cSynopsis }}</p>
                     <div class="flex items-center gap-4 mt-2 text-sm">
                       <span class="bg-brand-orange/10 px-2 py-1 rounded text-brand-orange">
-                        权重: {{ task.cweight }}
+                        优先级: {{ task.cPriority }}
                       </span>
                       <span class="bg-brand-blue/10 px-2 py-1 rounded text-brand-blue">
-                        类型: {{ task.ctype }}
+                        类型: {{ task.cType }}
                       </span>
                       <a 
-                        v-if="task.curl" 
-                        :href="task.curl" 
+                        v-if="task.cUrl" 
+                        :href="task.cUrl" 
                         target="_blank"
                         class="text-brand-mint hover:underline"
                       >
@@ -238,13 +272,37 @@ const startFocusMode = (task: TodoItem) => {
                       </a>
                     </div>
                   </div>
-                  <button 
-                    @click="startFocusMode(task)"
-                    class="glass px-3 py-1 rounded-lg text-sm text-brand-orange hover:bg-brand-orange/10 transition-colors"
-                    title="开始专注"
-                  >
-                    专注
-                  </button>
+                  <div class="flex gap-2">
+                    <button 
+                      v-if="task.cType === 'TODO'"
+                      @click="completeTask(task.pkCreation)"
+                      class="glass px-3 py-1 rounded-lg text-sm text-green-500 hover:bg-green-500/10 transition-colors"
+                      title="完成任务"
+                    >
+                      完成
+                    </button>
+                    <button 
+                      @click="startFocusMode(task)"
+                      class="glass px-3 py-1 rounded-lg text-sm text-brand-orange hover:bg-brand-orange/10 transition-colors"
+                      title="开始专注"
+                    >
+                      专注
+                    </button>
+                    <button 
+                      @click="updateTask(task)"
+                      class="glass px-3 py-1 rounded-lg text-sm text-brand-blue hover:bg-brand-blue/10 transition-colors"
+                      title="更新任务"
+                    >
+                      更新
+                    </button>
+                    <button 
+                      @click="deleteTask(task.pkCreation)"
+                      class="glass px-3 py-1 rounded-lg text-sm text-red-500 hover:bg-red-500/10 transition-colors"
+                      title="删除任务"
+                    >
+                      删除
+                    </button>
+                  </div>
                 </div>
               </div>
             </template>
@@ -269,24 +327,24 @@ const startFocusMode = (task: TodoItem) => {
               <div class="glass p-4 rounded-xl cursor-move hover:shadow-lg hover:scale-102 transition-all duration-200">
                 <div class="flex items-center gap-3">
                   <div class="flex-1">
-                    <h3 class="font-semibold">{{ task.cname }}</h3>
+                    <h3 class="font-semibold">{{ task.cName }}</h3>
                     <div class="flex items-center gap-2 text-sm opacity-75 mt-1">
                       <span>创建时间: {{ new Date(task.createTime).toLocaleString() }}</span>
                       <span v-if="task.updateTime" class="text-brand-orange">
                         (已更新: {{ new Date(task.updateTime).toLocaleString() }})
                       </span>
                     </div>
-                    <p v-if="task.csynopsis" class="text-sm opacity-75 mt-1">{{ task.csynopsis }}</p>
+                    <p v-if="task.cSynopsis" class="text-sm opacity-75 mt-1">{{ task.cSynopsis }}</p>
                     <div class="flex items-center gap-4 mt-2 text-sm">
                       <span class="bg-brand-orange/10 px-2 py-1 rounded text-brand-orange">
-                        权重: {{ task.cweight }}
+                        优先级: {{ task.cPriority }}
                       </span>
                       <span class="bg-brand-blue/10 px-2 py-1 rounded text-brand-blue">
-                        类型: {{ task.ctype }}
+                        类型: {{ task.cType }}
                       </span>
                       <a 
-                        v-if="task.curl" 
-                        :href="task.curl" 
+                        v-if="task.cUrl" 
+                        :href="task.cUrl" 
                         target="_blank"
                         class="text-brand-mint hover:underline"
                       >
@@ -294,13 +352,37 @@ const startFocusMode = (task: TodoItem) => {
                       </a>
                     </div>
                   </div>
-                  <button 
-                    @click="startFocusMode(task)"
-                    class="glass px-3 py-1 rounded-lg text-sm text-brand-orange hover:bg-brand-orange/10 transition-colors"
-                    title="开始专注"
-                  >
-                    专注
-                  </button>
+                  <div class="flex gap-2">
+                    <button 
+                      v-if="task.cType === 'TODO'"
+                      @click="completeTask(task.pkCreation)"
+                      class="glass px-3 py-1 rounded-lg text-sm text-green-500 hover:bg-green-500/10 transition-colors"
+                      title="完成任务"
+                    >
+                      完成
+                    </button>
+                    <button 
+                      @click="startFocusMode(task)"
+                      class="glass px-3 py-1 rounded-lg text-sm text-brand-orange hover:bg-brand-orange/10 transition-colors"
+                      title="开始专注"
+                    >
+                      专注
+                    </button>
+                    <button 
+                      @click="updateTask(task)"
+                      class="glass px-3 py-1 rounded-lg text-sm text-brand-blue hover:bg-brand-blue/10 transition-colors"
+                      title="更新任务"
+                    >
+                      更新
+                    </button>
+                    <button 
+                      @click="deleteTask(task.pkCreation)"
+                      class="glass px-3 py-1 rounded-lg text-sm text-red-500 hover:bg-red-500/10 transition-colors"
+                      title="删除任务"
+                    >
+                      删除
+                    </button>
+                  </div>
                 </div>
               </div>
             </template>
@@ -325,24 +407,24 @@ const startFocusMode = (task: TodoItem) => {
               <div class="glass p-4 rounded-xl cursor-move hover:shadow-lg hover:scale-102 transition-all duration-200">
                 <div class="flex items-center gap-3">
                   <div class="flex-1">
-                    <h3 class="font-semibold">{{ task.cname }}</h3>
+                    <h3 class="font-semibold">{{ task.cName }}</h3>
                     <div class="flex items-center gap-2 text-sm opacity-75 mt-1">
                       <span>创建时间: {{ new Date(task.createTime).toLocaleString() }}</span>
                       <span v-if="task.updateTime" class="text-brand-orange">
                         (已更新: {{ new Date(task.updateTime).toLocaleString() }})
                       </span>
                     </div>
-                    <p v-if="task.csynopsis" class="text-sm opacity-75 mt-1">{{ task.csynopsis }}</p>
+                    <p v-if="task.cSynopsis" class="text-sm opacity-75 mt-1">{{ task.cSynopsis }}</p>
                     <div class="flex items-center gap-4 mt-2 text-sm">
                       <span class="bg-brand-orange/10 px-2 py-1 rounded text-brand-orange">
-                        权重: {{ task.cweight }}
+                        优先级: {{ task.cPriority }}
                       </span>
                       <span class="bg-brand-blue/10 px-2 py-1 rounded text-brand-blue">
-                        类型: {{ task.ctype }}
+                        类型: {{ task.cType }}
                       </span>
                       <a 
-                        v-if="task.curl" 
-                        :href="task.curl" 
+                        v-if="task.cUrl" 
+                        :href="task.cUrl" 
                         target="_blank"
                         class="text-brand-mint hover:underline"
                       >
@@ -350,13 +432,37 @@ const startFocusMode = (task: TodoItem) => {
                       </a>
                     </div>
                   </div>
-                  <button 
-                    @click="startFocusMode(task)"
-                    class="glass px-3 py-1 rounded-lg text-sm text-brand-orange hover:bg-brand-orange/10 transition-colors"
-                    title="开始专注"
-                  >
-                    专注
-                  </button>
+                  <div class="flex gap-2">
+                    <button 
+                      v-if="task.cType === 'TODO'"
+                      @click="completeTask(task.pkCreation)"
+                      class="glass px-3 py-1 rounded-lg text-sm text-green-500 hover:bg-green-500/10 transition-colors"
+                      title="完成任务"
+                    >
+                      完成
+                    </button>
+                    <button 
+                      @click="startFocusMode(task)"
+                      class="glass px-3 py-1 rounded-lg text-sm text-brand-orange hover:bg-brand-orange/10 transition-colors"
+                      title="开始专注"
+                    >
+                      专注
+                    </button>
+                    <button 
+                      @click="updateTask(task)"
+                      class="glass px-3 py-1 rounded-lg text-sm text-brand-blue hover:bg-brand-blue/10 transition-colors"
+                      title="更新任务"
+                    >
+                      更新
+                    </button>
+                    <button 
+                      @click="deleteTask(task.pkCreation)"
+                      class="glass px-3 py-1 rounded-lg text-sm text-red-500 hover:bg-red-500/10 transition-colors"
+                      title="删除任务"
+                    >
+                      删除
+                    </button>
+                  </div>
                 </div>
               </div>
             </template>
@@ -381,24 +487,24 @@ const startFocusMode = (task: TodoItem) => {
               <div class="glass p-4 rounded-xl cursor-move hover:shadow-lg hover:scale-102 transition-all duration-200">
                 <div class="flex items-center gap-3">
                   <div class="flex-1">
-                    <h3 class="font-semibold">{{ task.cname }}</h3>
+                    <h3 class="font-semibold">{{ task.cName }}</h3>
                     <div class="flex items-center gap-2 text-sm opacity-75 mt-1">
                       <span>创建时间: {{ new Date(task.createTime).toLocaleString() }}</span>
                       <span v-if="task.updateTime" class="text-brand-orange">
                         (已更新: {{ new Date(task.updateTime).toLocaleString() }})
                       </span>
                     </div>
-                    <p v-if="task.csynopsis" class="text-sm opacity-75 mt-1">{{ task.csynopsis }}</p>
+                    <p v-if="task.cSynopsis" class="text-sm opacity-75 mt-1">{{ task.cSynopsis }}</p>
                     <div class="flex items-center gap-4 mt-2 text-sm">
                       <span class="bg-brand-orange/10 px-2 py-1 rounded text-brand-orange">
-                        权重: {{ task.cweight }}
+                        优先级: {{ task.cPriority }}
                       </span>
                       <span class="bg-brand-blue/10 px-2 py-1 rounded text-brand-blue">
-                        类型: {{ task.ctype }}
+                        类型: {{ task.cType }}
                       </span>
                       <a 
-                        v-if="task.curl" 
-                        :href="task.curl" 
+                        v-if="task.cUrl" 
+                        :href="task.cUrl" 
                         target="_blank"
                         class="text-brand-mint hover:underline"
                       >
@@ -406,13 +512,37 @@ const startFocusMode = (task: TodoItem) => {
                       </a>
                     </div>
                   </div>
-                  <button 
-                    @click="startFocusMode(task)"
-                    class="glass px-3 py-1 rounded-lg text-sm text-brand-orange hover:bg-brand-orange/10 transition-colors"
-                    title="开始专注"
-                  >
-                    专注
-                  </button>
+                  <div class="flex gap-2">
+                    <button 
+                      v-if="task.cType === 'TODO'"
+                      @click="completeTask(task.pkCreation)"
+                      class="glass px-3 py-1 rounded-lg text-sm text-green-500 hover:bg-green-500/10 transition-colors"
+                      title="完成任务"
+                    >
+                      完成
+                    </button>
+                    <button 
+                      @click="startFocusMode(task)"
+                      class="glass px-3 py-1 rounded-lg text-sm text-brand-orange hover:bg-brand-orange/10 transition-colors"
+                      title="开始专注"
+                    >
+                      专注
+                    </button>
+                    <button 
+                      @click="updateTask(task)"
+                      class="glass px-3 py-1 rounded-lg text-sm text-brand-blue hover:bg-brand-blue/10 transition-colors"
+                      title="更新任务"
+                    >
+                      更新
+                    </button>
+                    <button 
+                      @click="deleteTask(task.pkCreation)"
+                      class="glass px-3 py-1 rounded-lg text-sm text-red-500 hover:bg-red-500/10 transition-colors"
+                      title="删除任务"
+                    >
+                      删除
+                    </button>
+                  </div>
                 </div>
               </div>
             </template>
@@ -451,11 +581,10 @@ const startFocusMode = (task: TodoItem) => {
               v-model="newTask.cpriority"
               class="glass w-full p-3 rounded-xl"
             >
-              <option value="5">最高优先级（重要且紧急）</option>
-              <option value="4">高优先级（重要不紧急）</option>
-              <option value="3">中等优先级（不重要但紧急）</option>
-              <option value="2">低优先级（不重要但紧急）</option>
-              <option value="1">最低优先级（不重要不紧急）</option>
+              <option value="4">重要且紧急</option>
+              <option value="3">重要不紧急</option>
+              <option value="2">不重要但紧急</option>
+              <option value="1">不重要不紧急</option>
             </select>
           </div>
 
@@ -467,18 +596,6 @@ const startFocusMode = (task: TodoItem) => {
               class="glass w-full p-3 rounded-xl"
               placeholder="任务描述（可选）"
             ></textarea>
-          </div>
-
-          <div>
-            <label class="block mb-2 font-semibold">权重</label>
-            <input 
-              v-model="newTask.cweight"
-              type="number"
-              min="0"
-              step="0.1"
-              class="glass w-full p-3 rounded-xl"
-              placeholder="任务权重"
-            >
           </div>
         </div>
 

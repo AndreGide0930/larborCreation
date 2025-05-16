@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { useTimerStore } from '../stores/timer'
+import { onMounted, watch } from 'vue'
 
 const timerStore = useTimerStore()
+
+onMounted(() => {
+  console.log('TaskPanel mounted, active task:', timerStore.activeTask)
+})
+
+watch(() => timerStore.activeTask, (newTask) => {
+  console.log('Active task changed:', newTask)
+}, { immediate: true })
 </script>
 
 <template>
@@ -9,8 +18,19 @@ const timerStore = useTimerStore()
     <h2 class="text-2xl mb-4">当前任务</h2>
     
     <div v-if="timerStore.activeTask" class="space-y-6">
-      <div class="glass px-4 py-3 rounded-xl text-lg">
-        {{ timerStore.activeTask.title }}
+      <div class="glass px-4 py-3 rounded-xl">
+        <h3 class="text-lg font-semibold mb-2">{{ timerStore.activeTask.title }}</h3>
+        <p v-if="timerStore.activeTask.description" class="text-sm opacity-75">
+          {{ timerStore.activeTask.description }}
+        </p>
+        <div class="flex items-center gap-4 mt-2 text-sm">
+          <span v-if="timerStore.activeTask.priority" class="bg-brand-orange/10 px-2 py-1 rounded text-brand-orange">
+            优先级: {{ timerStore.activeTask.priority }}
+          </span>
+          <span v-if="timerStore.activeTask.type" class="bg-brand-blue/10 px-2 py-1 rounded text-brand-blue">
+            类型: {{ timerStore.activeTask.type }}
+          </span>
+        </div>
       </div>
 
       <div class="glass p-4 rounded-xl">
