@@ -113,14 +113,15 @@ async function loadPlanForDate(date: string) {
       params: {
         planDate: date
       }
-    })
+    }).catch(() => null) // Handle empty result set gracefully
 
     if (plan) {
       currentPlan.value = plan
+      error.value = ''
     } else {
       currentPlan.value = null
       if (isPastDate.value) {
-        error.value = `${dayjs(date).format('YYYY年MM月DD日')}没有计划记录，无法创建往期计划`
+        error.value = `${dayjs(date).format('YYYY年MM月DD日')}没有计划记录`
       }
     }
   } catch (e: any) {
@@ -139,12 +140,6 @@ async function createPlan() {
     
     if (!userInfo.pkUserInfo) {
       throw new Error('用户信息不完整，请重新登录')
-    }
-
-    // 检查是否为过去日期
-    if (isPastDate.value) {
-      error.value = '不能创建往期计划'
-      return
     }
 
     const planData = {
@@ -319,12 +314,12 @@ onMounted(async () => {
       <div class="neumorphic p-8 rounded-3xl">
         <div v-if="!currentPlan" class="text-center py-12">
           <div v-if="isPastDate" class="text-red-500 mb-4">
-            {{ error || '不能创建往期计划' }}
+            {{ error || '该日期没有计划记录' }}
           </div>
           <button 
             v-else
             @click="createPlan"
-            :disabled="loading"
+            :disabled="loading || isPastDate"
             class="glass px-8 py-4 rounded-xl text-xl hover:bg-brand-orange/10 transition-all duration-300 transform hover:scale-105"
           >
             {{ loading ? '创建中...' : `开启${isFutureDate ? '未来' : '今日'}计划 (${dayjs(selectedDate).format('MM月DD日')})` }}
