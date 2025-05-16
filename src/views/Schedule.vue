@@ -246,6 +246,29 @@ async function handleEventResize(resizeInfo: any) {
   }
 }
 
+async function deletePlan() {
+  if (!currentPlan.value) return
+
+  try {
+    loading.value = true
+    error.value = ''
+
+    await request('/api/deletePlan', {
+      method: 'DELETE',
+      params: {
+        pkPlan: currentPlan.value.pkPlan
+      }
+    })
+
+    currentPlan.value = null
+  } catch (e: any) {
+    console.error('删除计划失败:', e)
+    error.value = e.message || '删除计划失败'
+  } finally {
+    loading.value = false
+  }
+}
+
 onMounted(async () => {
   await loadPlanForDate(selectedDate.value)
 })
@@ -264,46 +287,57 @@ onMounted(async () => {
       </div>
 
       <!-- Custom Calendar Toolbar -->
-      <div class="neumorphic p-4 rounded-xl flex justify-center items-center gap-4">
-        <button 
-          @click="handleDateSelect(dayjs(selectedDate).subtract(1, 'day').format('YYYY-MM-DD'))"
-          class="glass p-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
-          title="前一天"
-        >
-          <span class="text-xl">←</span>
-        </button>
-        
-        <div class="relative">
+      <div class="neumorphic p-4 rounded-xl flex justify-between items-center">
+        <div class="flex items-center gap-4">
           <button 
-            @click="showDatePicker = !showDatePicker"
-            class="glass px-6 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors min-w-[200px] text-lg font-semibold"
+            @click="handleDateSelect(dayjs(selectedDate).subtract(1, 'day').format('YYYY-MM-DD'))"
+            class="glass p-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
+            title="前一天"
           >
-            {{ dayjs(selectedDate).format('YYYY年MM月DD日') }}
+            <span class="text-xl">←</span>
           </button>
           
-          <input 
-            v-if="showDatePicker"
-            type="date"
-            :value="selectedDate"
-            @change="(e) => handleDateSelect((e.target as HTMLInputElement).value)"
-            class="absolute top-full left-0 mt-2 glass p-2 rounded-lg w-full z-10"
+          <div class="relative">
+            <button 
+              @click="showDatePicker = !showDatePicker"
+              class="glass px-6 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors min-w-[200px] text-lg font-semibold"
+            >
+              {{ dayjs(selectedDate).format('YYYY年MM月DD日') }}
+            </button>
+            
+            <input 
+              v-if="showDatePicker"
+              type="date"
+              :value="selectedDate"
+              @change="(e) => handleDateSelect((e.target as HTMLInputElement).value)"
+              class="absolute top-full left-0 mt-2 glass p-2 rounded-lg w-full z-10"
+            >
+          </div>
+
+          <button 
+            @click="handleDateSelect(dayjs(selectedDate).add(1, 'day').format('YYYY-MM-DD'))"
+            class="glass p-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
+            title="后一天"
           >
+            <span class="text-xl">→</span>
+          </button>
+
+          <button 
+            @click="goToToday"
+            class="glass px-4 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
+            :class="{ 'bg-brand-orange/10': dayjs(selectedDate).isSame(dayjs(), 'day') }"
+          >
+            今天
+          </button>
         </div>
 
         <button 
-          @click="handleDateSelect(dayjs(selectedDate).add(1, 'day').format('YYYY-MM-DD'))"
-          class="glass p-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
-          title="后一天"
+          v-if="currentPlan"
+          @click="deletePlan"
+          :disabled="loading"
+          class="glass px-4 py-2 rounded-xl text-red-500 hover:bg-red-500/10 transition-all duration-300"
         >
-          <span class="text-xl">→</span>
-        </button>
-
-        <button 
-          @click="goToToday"
-          class="glass px-4 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
-          :class="{ 'bg-brand-orange/10': dayjs(selectedDate).isSame(dayjs(), 'day') }"
-        >
-          今天
+          {{ loading ? '删除中...' : '删除计划' }}
         </button>
       </div>
 
@@ -441,3 +475,4 @@ onMounted(async () => {
   @apply border-brand-orange/10 dark:border-white/10;
 }
 </style>
+```
