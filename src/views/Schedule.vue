@@ -65,7 +65,7 @@ const calendarOptions = computed(() => ({
   slotMinTime: '06:00:00',
   slotMaxTime: '22:00:00',
   slotDuration: '00:30:00',
-  headerToolbar: false,
+  headerToolbar: false as const,
   buttonText: {
     today: '今天',
     day: '日',
@@ -105,7 +105,7 @@ const events = computed(() => {
   
   return currentPlan.value.timedoroes.map(timedoro => ({
     id: timedoro.pkTimedoro,
-    title: timedoro.creations.map(c => c.cName).join(', ') || '专注时间',
+    title: timedoro.creations?.map(c => c.cName).join(', ') || '专注时间',
     start: timedoro.timeSlice,
     end: dayjs(timedoro.timeSlice).add(30, 'minutes').format(),
     backgroundColor: timedoro.sumDone > 0 ? '#4DB6AC' : '#FF6B6B',
@@ -203,6 +203,9 @@ async function createTimedoro() {
 
     await request('/api/createTimedoro', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(timedoroData)
     })
 

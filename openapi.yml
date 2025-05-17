@@ -528,7 +528,7 @@ paths:
     get:
       tags:
         - PlanController
-      operationId: readPlanByDate
+      operationId: readPlanByDateAndId
       parameters:
         - name: planDate
           in: query
