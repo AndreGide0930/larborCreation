@@ -237,7 +237,16 @@ const handleTimeBlockClick = async (time: string) => {
     return
   }
 
-  selectedTimeSlot.value = time
+  const timeStr = time.split(':')
+  const hours = parseInt(timeStr[0])
+  const minutes = parseInt(timeStr[1])
+  const selectedDateTime = dayjs(selectedDate.value)
+    .hour(hours)
+    .minute(minutes)
+    .second(0)
+    .millisecond(0)
+  
+  selectedTimeSlot.value = selectedDateTime.format('YYYY-MM-DDTHH:mm:ss')
   
   try {
     const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
@@ -391,8 +400,8 @@ onMounted(async () => {
         
         <div class="mb-4">
           <div class="glass p-3 rounded-xl text-center mb-4">
-            {{ dayjs(selectedTimeSlot).format('HH:mm') }} - 
-            {{ dayjs(selectedTimeSlot).add(30, 'minutes').format('HH:mm') }}
+            {{ selectedTimeSlot ? dayjs(selectedTimeSlot).format('HH:mm') : '--:--' }} - 
+            {{ selectedTimeSlot ? dayjs(selectedTimeSlot).add(30, 'minutes').format('HH:mm') : '--:--' }}
           </div>
 
           <div class="max-h-[400px] overflow-y-auto space-y-2">
