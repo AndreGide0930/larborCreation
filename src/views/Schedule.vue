@@ -1,4 +1,3 @@
-<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useTaskStore } from '../stores/tasks'
 import { useTimerStore } from '../stores/timer'
@@ -8,9 +7,15 @@ import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
 import { request } from '../utils/request'
 
+// Enable UTC and timezone plugins
 dayjs.extend(utc)
+dayjs.extend(timezone)
+
+// Set default timezone to local
+dayjs.tz.setDefault(dayjs.tz.guess())
 
 interface Plan {
   pkPlan: number
@@ -145,27 +150,25 @@ const events = computed(() => {
   console.log('Processing timedoroes:', currentPlan.value.timedoroes)
   
   return currentPlan.value.timedoroes.map(timedoro => {
-    // 解析 UTC 时间
-    const utcTime = dayjs.utc(timedoro.timeSlice)
-    // 获取时间部分（小时和分钟）
-    const timeStr = utcTime.format('HH:mm:ss')
-    // 使用选定的日期和时间组合
-    const start = dayjs(`${selectedDate.value}T${timeStr}`)
+    // Parse the UTC time from the server
+    const timeSlice = dayjs(timedoro.timeSlice)
+    
+    // Create start and end times in local timezone
+    const start = timeSlice.local()
     const end = start.add(30, 'minutes')
     
-    console.log('Timedoro:', {
+    console.log('Timedoro processing:', {
       id: timedoro.pkTimedoro,
       timeSlice: timedoro.timeSlice,
-      selectedDate: selectedDate.value,
-      timeStr,
-      start: start.format(),
-      end: end.format(),
+      parsedTime: timeSlice.format(),
+      localStart: start.format(),
+      localEnd: end.format(),
       creations: timedoro.creations
     })
     
     return {
       id: timedoro.pkTimedoro,
-      title: timedoro.creations?.map(c => c.cName).join(', ') || '专注时间',
+      title: timedoro.creations?.map(c => c.cName || '未命名任务').join(', ') || '专注时间',
       start: start.format(),
       end: end.format(),
       backgroundColor: timedoro.sumDone > 0 ? '#4DB6AC' : '#FF6B6B',
