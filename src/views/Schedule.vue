@@ -14,7 +14,7 @@ interface Plan {
   planDate: string
   planName: string
   fkUserInfoId: number
-  timedoroes: any[]
+  timedoroes: Timedoro[]
 }
 
 interface Task {
@@ -25,28 +25,29 @@ interface Task {
   cSynopsis?: string
 }
 
+interface Timedoro {
+  pkTimedoro: number
+  timeSlice: string
+  creations: Task[]
+  plans: Plan[]
+  sumDone: number
+  sumTodo: number
+}
+
 const taskStore = useTaskStore()
 const timerStore = useTimerStore()
 const calendarRef = ref()
 const selectedDate = ref(dayjs().format('YYYY-MM-DD'))
 const currentPlan = ref<Plan | null>(null)
 const showTaskModal = ref(false)
+const showTimedoroModal = ref(false)
 const selectedTimeSlot = ref<{ start: string; end: string } | null>(null)
+const selectedTimedoro = ref<Timedoro | null>(null)
 const loading = ref(false)
 const error = ref('')
 const showDatePicker = ref(false)
 const availableTasks = ref<Task[]>([])
 const selectedTasks = ref<number[]>([])
-
-// Task creation form
-const newTask = ref({
-  title: '',
-  reminder: {
-    enabled: false,
-    type: 'before',
-    minutes: 15
-  }
-})
 
 const isPastDate = computed(() => {
   const today = dayjs().startOf('day')
@@ -104,12 +105,15 @@ const events = computed(() => {
   
   return currentPlan.value.timedoroes.map(timedoro => ({
     id: timedoro.pkTimedoro,
-    title: timedoro.title || '专注时间',
+    title: timedoro.creations.map(c => c.cName).join(', ') || '专注时间',
     start: timedoro.timeSlice,
-    end: dayjs(timedoro.timeSlice).add(25, 'minutes').format(),
+    end: dayjs(timedoro.timeSlice).add(30, 'minutes').format(),
     backgroundColor: timedoro.sumDone > 0 ? '#4DB6AC' : '#FF6B6B',
     borderColor: 'transparent',
-    textColor: '#ffffff'
+    textColor: '#ffffff',
+    extendedProps: {
+      timedoro
+    }
   }))
 })
 
@@ -117,10 +121,12 @@ async function loadPlanForDate(date: string) {
   try {
     loading.value = true
     error.value = ''
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
 
-    const plan = await request('/api/readPlanByDate', {
+    const plan = await request('/api/readPlanByDateAndId', {
       params: {
-        planDate: date
+        planDate: date,
+        pkUserInfo: userInfo.pkUserInfo
       }
     }).catch(() => null)
 
@@ -178,6 +184,97 @@ async function createPlan() {
   }
 }
 
+async function createTimedoro() {
+  if (!selectedTimeSlot.value || !currentPlan.value || selectedTasks.value.length === 0) return
+
+  try {
+    loading.value = true
+    error.value = ''
+
+    const timedoroData = {
+      timeSlice: selectedTimeSlot.value.start,
+      plans: [{
+        pkPlan: currentPlan.value.pkPlan
+      }],
+      creations: selectedTasks.value.map(taskId => ({
+        pkCreation: taskId
+      }))
+    }
+
+    await request('/api/createTimedoro', {
+      method: 'POST',
+      body: JSON.stringify(timedoroData)
+    })
+
+    await loadPlanForDate(selectedDate.value)
+    showTaskModal.value = false
+    selectedTasks.value = []
+  } catch (e: any) {
+    error.value = e.message || '创建专注时间失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function updateTimedoro() {
+  if (!selectedTimedoro.value) return
+
+  try {
+    loading.value = true
+    error.value = ''
+
+    await request('/api/updateTimedoro', {
+      method: 'PUT',
+      body: JSON.stringify(selectedTimedoro.value)
+    })
+
+    await loadPlanForDate(selectedDate.value)
+    showTimedoroModal.value = false
+  } catch (e: any) {
+    error.value = e.message || '更新专注时间失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function deleteTimedoro(pkTimedoro: number) {
+  try {
+    loading.value = true
+    error.value = ''
+
+    await request('/api/deleteTimedoro', {
+      method: 'DELETE',
+      params: {
+        pkTimedoro
+      }
+    })
+
+    await loadPlanForDate(selectedDate.value)
+    showTimedoroModal.value = false
+  } catch (e: any) {
+    error.value = e.message || '删除专注时间失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function removeTaskFromTimedoro(pkCreation: number, pkTimedoro: number) {
+  try {
+    loading.value = true
+    error.value = ''
+
+    await request(`/api/works/${pkCreation}/timedoro/${pkTimedoro}`, {
+      method: 'DELETE'
+    })
+
+    await loadPlanForDate(selectedDate.value)
+  } catch (e: any) {
+    error.value = e.message || '移除任务失败'
+  } finally {
+    loading.value = false
+  }
+}
+
 const handleDateSelect = async (date: string) => {
   selectedDate.value = date
   showDatePicker.value = false
@@ -221,30 +318,25 @@ async function handleTimeSlotSelect(selectInfo: any) {
 }
 
 async function handleEventClick(clickInfo: any) {
-  const taskId = clickInfo.event.id
-  if (taskId) {
-    timerStore.startTimer({
-      id: Number(taskId),
-      title: clickInfo.event.title
-    })
-  }
+  selectedTimedoro.value = clickInfo.event.extendedProps.timedoro
+  showTimedoroModal.value = true
 }
 
 async function handleEventDrop(dropInfo: any) {
   if (!currentPlan.value) return
   
   try {
+    const timedoro = dropInfo.event.extendedProps.timedoro
+    timedoro.timeSlice = dropInfo.event.startStr
+    
     await request('/api/updateTimedoro', {
       method: 'PUT',
-      body: JSON.stringify({
-        pkTimedoro: dropInfo.event.id,
-        timeSlice: dropInfo.event.startStr
-      })
+      body: JSON.stringify(timedoro)
     })
     
     await loadPlanForDate(selectedDate.value)
   } catch (e: any) {
-    error.value = e.message || '更新任务失败'
+    error.value = e.message || '更新时间失败'
     setTimeout(() => error.value = '', 3000)
   }
 }
@@ -253,17 +345,17 @@ async function handleEventResize(resizeInfo: any) {
   if (!currentPlan.value) return
   
   try {
+    const timedoro = resizeInfo.event.extendedProps.timedoro
+    timedoro.timeSlice = resizeInfo.event.startStr
+    
     await request('/api/updateTimedoro', {
       method: 'PUT',
-      body: JSON.stringify({
-        pkTimedoro: resizeInfo.event.id,
-        timeSlice: resizeInfo.event.startStr
-      })
+      body: JSON.stringify(timedoro)
     })
     
     await loadPlanForDate(selectedDate.value)
   } catch (e: any) {
-    error.value = e.message || '更新任务失败'
+    error.value = e.message || '更新时间失败'
     setTimeout(() => error.value = '', 3000)
   }
 }
@@ -286,38 +378,6 @@ async function deletePlan() {
   } catch (e: any) {
     console.error('删除计划失败:', e)
     error.value = e.message || '删除计划失败'
-  } finally {
-    loading.value = false
-  }
-}
-
-async function createTimedoroWithTasks() {
-  if (!selectedTimeSlot.value || !currentPlan.value || selectedTasks.value.length === 0) return
-
-  try {
-    loading.value = true
-    error.value = ''
-
-    const taskData = {
-      timeSlice: selectedTimeSlot.value.start,
-      plans: [{
-        pkPlan: currentPlan.value.pkPlan
-      }],
-      creations: selectedTasks.value.map(taskId => ({
-        pkCreation: taskId
-      }))
-    }
-
-    await request('/api/createTimedoro', {
-      method: 'POST',
-      body: JSON.stringify(taskData)
-    })
-
-    await loadPlanForDate(selectedDate.value)
-    showTaskModal.value = false
-    selectedTasks.value = []
-  } catch (e: any) {
-    error.value = e.message || '创建专注时间失败'
   } finally {
     loading.value = false
   }
@@ -421,6 +481,7 @@ onMounted(async () => {
       </div>
     </div>
 
+    <!-- Task Selection Modal -->
     <div 
       v-if="showTaskModal"
       class="fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm"
@@ -462,11 +523,11 @@ onMounted(async () => {
 
         <div class="flex gap-4 pt-4">
           <button
-            @click="createTimedoroWithTasks"
+            @click="createTimedoro"
             :disabled="loading || selectedTasks.length === 0"
             class="flex-1 bg-gradient-to-r from-brand-orange to-brand-mint text-white py-3 rounded-xl font-medium transition-all hover:opacity-90 disabled:opacity-50"
           >
-            {{ loading ? '创建中...' : '开始专注' }}
+            {{ loading ? '创建中...' : '创建时间块' }}
           </button>
           <button
             type="button"
@@ -474,6 +535,78 @@ onMounted(async () => {
             class="glass px-6 py-3 rounded-xl hover:bg-brand-orange/10 transition-colors"
           >
             取消
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timedoro Edit Modal -->
+    <div 
+      v-if="showTimedoroModal && selectedTimedoro"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm"
+      @click.self="showTimedoroModal = false"
+    >
+      <div class="neumorphic p-8 rounded-2xl w-full max-w-md">
+        <h2 class="text-2xl font-bold mb-6">编辑时间块</h2>
+        
+        <div class="space-y-6">
+          <div class="glass p-4 rounded-xl">
+            <h3 class="font-semibold mb-2">时间</h3>
+            <div class="text-center text-xl">
+              {{ dayjs(selectedTimedoro.timeSlice).format('HH:mm') }} - 
+              {{ dayjs(selectedTimedoro.timeSlice).add(30, 'minutes').format('HH:mm') }}
+            </div>
+          </div>
+
+          <div class="glass p-4 rounded-xl">
+            <h3 class="font-semibold mb-2">关联任务</h3>
+            <div class="space-y-2">
+              <div 
+                v-for="task in selectedTimedoro.creations" 
+                :key="task.pkCreation"
+                class="flex items-center justify-between p-2 rounded-lg hover:bg-brand-orange/5"
+              >
+                <span>{{ task.cName }}</span>
+                <button
+                  @click="removeTaskFromTimedoro(task.pkCreation, selectedTimedoro.pkTimedoro)"
+                  class="text-red-500 hover:bg-red-500/10 p-1 rounded"
+                  title="移除任务"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass p-4 rounded-xl">
+            <h3 class="font-semibold mb-2">统计</h3>
+            <div class="flex justify-around text-center">
+              <div>
+                <div class="text-2xl font-bold text-green-500">{{ selectedTimedoro.sumDone }}</div>
+                <div class="text-sm opacity-75">已完成</div>
+              </div>
+              <div>
+                <div class="text-2xl font-bold text-brand-orange">{{ selectedTimedoro.sumTodo }}</div>
+                <div class="text-sm opacity-75">待完成</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-4 mt-8">
+          <button
+            @click="updateTimedoro"
+            :disabled="loading"
+            class="flex-1 bg-gradient-to-r from-brand-orange to-brand-mint text-white py-3 rounded-xl font-medium transition-all hover:opacity-90"
+          >
+            {{ loading ? '更新中...' : '更新时间块' }}
+          </button>
+          <button
+            @click="deleteTimedoro(selectedTimedoro.pkTimedoro)"
+            :disabled="loading"
+            class="glass px-6 py-3 rounded-xl text-red-500 hover:bg-red-500/10 transition-colors"
+          >
+            删除
           </button>
         </div>
       </div>
