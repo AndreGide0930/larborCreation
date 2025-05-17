@@ -23,6 +23,10 @@ interface Task {
   cType: string
   cPriority: number
   cSynopsis?: string
+  cWeight: number
+  cUrl?: string
+  createTime: string
+  updateTime?: string
 }
 
 interface Timedoro {
@@ -108,7 +112,7 @@ const calendarOptions = computed(() => ({
             ${timedoro.creations.map((task: Task) => `
               <div class="flex items-center gap-1 mt-1">
                 <span class="w-2 h-2 rounded-full ${task.cType === 'DONE' ? 'bg-green-300' : 'bg-orange-300'}"></span>
-                <span class="truncate">${task.cName}</span>
+                <span class="truncate">${task.cName || '未命名任务'}</span>
               </div>
             `).join('')}
           </div>
@@ -126,23 +130,22 @@ const events = computed(() => {
   if (!currentPlan?.value?.timedoroes) return []
   
   return currentPlan.value.timedoroes.map(timedoro => {
-    const timedoroDate = dayjs(timedoro.timeSlice).format('YYYY-MM-DD')
-    const isCorrectDate = timedoroDate === selectedDate.value
-
+    const start = dayjs(timedoro.timeSlice)
+    const end = start.add(30, 'minutes')
+    
     return {
       id: timedoro.pkTimedoro,
       title: timedoro.creations?.map(c => c.cName).join(', ') || '专注时间',
-      start: timedoro.timeSlice,
-      end: dayjs(timedoro.timeSlice).add(30, 'minutes').format('YYYY-MM-DDTHH:mm:ss'),
+      start: start.format('YYYY-MM-DDTHH:mm:ss'),
+      end: end.format('YYYY-MM-DDTHH:mm:ss'),
       backgroundColor: timedoro.sumDone > 0 ? '#4DB6AC' : '#FF6B6B',
       borderColor: 'transparent',
       textColor: '#ffffff',
       extendedProps: {
-        timedoro,
-        isCorrectDate
+        timedoro
       }
     }
-  }).filter(event => event.extendedProps.isCorrectDate)
+  })
 })
 
 async function loadPlanForDate(date: string) {
@@ -546,7 +549,7 @@ onMounted(async () => {
                 class="w-5 h-5 rounded-lg accent-brand-orange"
               >
               <div class="flex-1">
-                <div class="font-medium">{{ task.cName }}</div>
+                <div class="font-medium">{{ task.cName || '未命名任务' }}</div>
                 <div v-if="task.cSynopsis" class="text-sm opacity-75">{{ task.cSynopsis }}</div>
                 <div class="flex gap-2 mt-1">
                   <span class="text-xs px-2 py-1 rounded-full bg-brand-orange/10 text-brand-orange">
@@ -608,7 +611,7 @@ onMounted(async () => {
                     class="w-2 h-2 rounded-full"
                     :class="task.cType === 'DONE' ? 'bg-green-500' : 'bg-brand-orange'"
                   ></span>
-                  <span>{{ task.cName }}</span>
+                  <span>{{ task.cName || '未命名任务' }}</span>
                 </div>
                 <button
                   @click="removeTaskFromTimedoro(task.pkCreation, selectedTimedoro.pkTimedoro)"
