@@ -97,6 +97,28 @@ const calendarOptions = computed(() => ({
       selectedDate.value = newDate
       await loadPlanForDate(newDate)
     }
+  },
+  eventContent: (arg: any) => {
+    const timedoro = arg.event.extendedProps.timedoro
+    return {
+      html: `
+        <div class="p-1 h-full">
+          <div class="font-semibold">${arg.timeText}</div>
+          <div class="text-sm">
+            ${timedoro.creations.map((task: Task) => `
+              <div class="flex items-center gap-1 mt-1">
+                <span class="w-2 h-2 rounded-full ${task.cType === 'DONE' ? 'bg-green-300' : 'bg-orange-300'}"></span>
+                <span class="truncate">${task.cName}</span>
+              </div>
+            `).join('')}
+          </div>
+          <div class="text-xs mt-1">
+            <span class="bg-white/20 px-1 rounded">完成: ${timedoro.sumDone}</span>
+            <span class="bg-white/20 px-1 rounded ml-1">待办: ${timedoro.sumTodo}</span>
+          </div>
+        </div>
+      `
+    }
   }
 }))
 
@@ -569,7 +591,13 @@ onMounted(async () => {
                 :key="task.pkCreation"
                 class="flex items-center justify-between p-2 rounded-lg hover:bg-brand-orange/5"
               >
-                <span>{{ task.cName }}</span>
+                <div class="flex items-center gap-2">
+                  <span 
+                    class="w-2 h-2 rounded-full"
+                    :class="task.cType === 'DONE' ? 'bg-green-500' : 'bg-brand-orange'"
+                  ></span>
+                  <span>{{ task.cName }}</span>
+                </div>
                 <button
                   @click="removeTaskFromTimedoro(task.pkCreation, selectedTimedoro.pkTimedoro)"
                   class="text-red-500 hover:bg-red-500/10 p-1 rounded"
