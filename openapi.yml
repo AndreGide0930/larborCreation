@@ -86,6 +86,26 @@ paths:
       responses:
         200:
           description: OK
+  /analysisPlan:
+    get:
+      tags:
+        - PlanController
+      operationId: analysisPlan
+      parameters:
+        - name: pkPlan
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: integer
+                format: int32
   /auth/login:
     post:
       tags:
@@ -252,6 +272,10 @@ paths:
       responses:
         200:
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dynamic_Timedoro'
   /createWork:
     post:
       tags:
@@ -359,12 +383,13 @@ paths:
       tags:
         - TimedoroController
       operationId: deleteTimedoro
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Dynamic_Timedoro'
-        required: true
+      parameters:
+        - name: pkTimedoro
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
       responses:
         200:
           description: OK
@@ -557,6 +582,66 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Dynamic_Remind'
+  /readTimedoro:
+    get:
+      tags:
+        - TimedoroController
+      operationId: readTimedoro
+      parameters:
+        - name: pkTimedoro
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dynamic_Timedoro'
+  /readTimedoroByPkPlan:
+    get:
+      tags:
+        - TimedoroController
+      operationId: readTimedoroByPkPlan
+      parameters:
+        - name: pkPlan
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tuple2_Dynamic_Plan_Dynamic_Timedoro'
+  /search:
+    get:
+      tags:
+        - CreationController
+      operationId: searchCreations
+      parameters:
+        - name: keyword
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Dynamic_Creation'
   /update:
     put:
       tags:
@@ -625,6 +710,10 @@ paths:
       responses:
         200:
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dynamic_Timedoro'
   /updateWork:
     put:
       tags:
@@ -689,7 +778,6 @@ components:
   schemas:
     Dynamic_UserInfo:
       type: object
-      description: Entity for table "user_info"
       properties:
         pkUserInfo:
           type: integer
@@ -743,7 +831,6 @@ components:
           type: object
     Dynamic_Creation:
       type: object
-      description: Entity for table "creation"
       properties:
         pkCreation:
           type: integer
@@ -782,7 +869,6 @@ components:
             $ref: '#/components/schemas/Dynamic_Timedoro'
     Dynamic_Plan:
       type: object
-      description: Entity for table "plan"
       properties:
         pkPlan:
           type: integer
@@ -804,7 +890,6 @@ components:
             $ref: '#/components/schemas/Dynamic_Timedoro'
     Dynamic_Remind:
       type: object
-      description: Entity for table "remind"
       properties:
         pkRemind:
           type: integer
@@ -824,7 +909,6 @@ components:
             - Gentle
     Dynamic_Timedoro:
       type: object
-      description: 'Time silice & pomodoro'
       properties:
         pkTimedoro:
           type: integer
@@ -848,7 +932,6 @@ components:
           format: int32
     WorkInput:
       type: object
-      description: Entity for table "creation"
       properties:
         pkCreation:
           nullable: true
@@ -878,9 +961,15 @@ components:
         body:
           nullable: true
           $ref: '#/components/schemas/StreamingResponseBody'
+    Tuple2_Dynamic_Plan_Dynamic_Timedoro:
+      type: object
+      properties:
+        _1:
+          $ref: '#/components/schemas/Dynamic_Plan'
+        _2:
+          $ref: '#/components/schemas/Dynamic_Timedoro'
     Dynamic_Role:
       type: object
-      description: Entity for table "role"
       properties:
         roleId:
           description: 角色ID
@@ -1048,7 +1137,6 @@ components:
           type: boolean
     WorkInput_TargetOf_fkUserInfo:
       type: object
-      description: Entity for table "user_info"
       properties:
         pkUserInfo:
           nullable: true
@@ -1059,7 +1147,6 @@ components:
       properties:
     Dynamic_Permission:
       type: object
-      description: Entity for table "permission"
       properties:
         permId:
           description: 权限ID

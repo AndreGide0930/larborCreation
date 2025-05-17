@@ -20,6 +20,9 @@ const works = ref<Work[]>([])
 const showUploadForm = ref(false)
 const showDeleteConfirm = ref(false)
 const workToDelete = ref<Work | null>(null)
+const searchKeyword = ref('')
+const searchResults = ref<Work[]>([])
+const isSearching = ref(false)
 const newWork = ref<Work>({
   cName: '',
   cWeight: 0,
@@ -270,6 +273,41 @@ const handleDownload = async (work: Work) => {
   }
 }
 
+const handleSearch = async () => {
+  if (!searchKeyword.value.trim()) {
+    await fetchWorks()
+    return
+  }
+
+  loading.value = true
+  error.value = ''
+  isSearching.value = true
+  
+  try {
+    const data = await request('/api/search', {
+      params: {
+        keyword: searchKeyword.value.trim()
+      }
+    })
+    searchResults.value = data
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      error.value = err.message
+    } else {
+      error.value = '搜索失败，请稍后重试'
+    }
+    console.error('Error searching works:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+const clearSearch = async () => {
+  searchKeyword.value = ''
+  isSearching.value = false
+  await fetchWorks()
+}
+
 onMounted(() => {
   fetchWorks()
   resetForm()
@@ -309,13 +347,30 @@ onMounted(() => {
           type="text" 
           placeholder="搜索..." 
           class="glass p-2 rounded-lg flex-1"
+          v-model="searchKeyword"
+          @keyup.enter="handleSearch"
         >
+        <button 
+          @click="handleSearch"
+          class="glass px-4 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
+          :disabled="loading"
+        >
+          <i class="fas fa-search mr-2"></i>搜索
+        </button>
+        <button 
+          v-if="isSearching"
+          @click="clearSearch"
+          class="glass px-4 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
+          :disabled="loading"
+        >
+          <i class="fas fa-times mr-2"></i>清除
+        </button>
       </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <div 
-        v-for="work in works" 
+        v-for="work in (isSearching ? searchResults : works)" 
         :key="work.pkCreation"
         class="neumorphic rounded-lg overflow-hidden hover:scale-105 transition-transform cursor-pointer relative group"
         @mouseenter="handleWorkHover(work, $event)"
