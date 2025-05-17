@@ -125,18 +125,24 @@ const calendarOptions = computed(() => ({
 const events = computed(() => {
   if (!currentPlan?.value?.timedoroes) return []
   
-  return currentPlan.value.timedoroes.map(timedoro => ({
-    id: timedoro.pkTimedoro,
-    title: timedoro.creations?.map(c => c.cName).join(', ') || '专注时间',
-    start: timedoro.timeSlice,
-    end: dayjs(timedoro.timeSlice).add(30, 'minutes').format(),
-    backgroundColor: timedoro.sumDone > 0 ? '#4DB6AC' : '#FF6B6B',
-    borderColor: 'transparent',
-    textColor: '#ffffff',
-    extendedProps: {
-      timedoro
+  return currentPlan.value.timedoroes.map(timedoro => {
+    const timedoroDate = dayjs(timedoro.timeSlice).format('YYYY-MM-DD')
+    const isCorrectDate = timedoroDate === selectedDate.value
+
+    return {
+      id: timedoro.pkTimedoro,
+      title: timedoro.creations?.map(c => c.cName).join(', ') || '专注时间',
+      start: timedoro.timeSlice,
+      end: dayjs(timedoro.timeSlice).add(30, 'minutes').format('YYYY-MM-DDTHH:mm:ss'),
+      backgroundColor: timedoro.sumDone > 0 ? '#4DB6AC' : '#FF6B6B',
+      borderColor: 'transparent',
+      textColor: '#ffffff',
+      extendedProps: {
+        timedoro,
+        isCorrectDate
+      }
     }
-  }))
+  }).filter(event => event.extendedProps.isCorrectDate)
 })
 
 async function loadPlanForDate(date: string) {
@@ -213,8 +219,11 @@ async function createTimedoro() {
     loading.value = true
     error.value = ''
 
+    const selectedDateTime = dayjs(selectedTimeSlot.value.start)
+    const timeSlice = selectedDateTime.format('YYYY-MM-DDTHH:mm:ss')
+
     const timedoroData = {
-      timeSlice: selectedTimeSlot.value.start,
+      timeSlice: timeSlice,
       plans: [{
         pkPlan: currentPlan.value.pkPlan
       }],
@@ -332,10 +341,13 @@ async function handleTimeSlotSelect(selectInfo: any) {
     
     availableTasks.value = tasks.filter((task: Task) => task.cType === 'TODO')
     selectedTasks.value = []
+    
+    const selectedDateTime = dayjs(selectInfo.startStr)
     selectedTimeSlot.value = {
-      start: selectInfo.startStr,
-      end: selectInfo.endStr
+      start: selectedDateTime.format('YYYY-MM-DDTHH:mm:ss'),
+      end: selectedDateTime.add(30, 'minutes').format('YYYY-MM-DDTHH:mm:ss')
     }
+    
     showTaskModal.value = true
   } catch (e: any) {
     error.value = e.message || '加载任务失败'
