@@ -1,3 +1,4 @@
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useTaskStore } from '../stores/tasks'
 import { useTimerStore } from '../stores/timer'
@@ -459,6 +460,7 @@ async function deletePlan() {
 onMounted(async () => {
   await loadPlanForDate(selectedDate.value)
 })
+
 import { watch } from 'vue'
 watch(events, val => {
   console.log('events:', val)
@@ -557,6 +559,7 @@ watch(events, val => {
         </div>
       </div>
     </div>
+
     <!-- Task Selection Modal -->
     <div 
       v-if="showTaskModal"
@@ -750,7 +753,7 @@ watch(events, val => {
   @apply font-medium px-3 pb-2;
 }
 
-:deep(.fc .fc-timegrid-event) {
+:deep(.fc .fc-timegrid-event)  {
   @apply bg-opacity-90 backdrop-blur-sm;
 }
 
