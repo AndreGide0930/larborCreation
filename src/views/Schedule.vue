@@ -7,7 +7,10 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
 import { request } from '../utils/request'
+
+dayjs.extend(utc)
 
 interface Plan {
   pkPlan: number
@@ -66,8 +69,8 @@ const isFutureDate = computed(() => {
 const calendarOptions = computed(() => ({
   plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
   initialView: 'timeGridDay',
-  slotMinTime: '06:00:00',
-  slotMaxTime: '22:00:00',
+  slotMinTime: '00:00:00',
+  slotMaxTime: '23:59:59',
   slotDuration: '00:30:00',
   headerToolbar: false as const,
   buttonText: {
@@ -103,18 +106,28 @@ const calendarOptions = computed(() => ({
     }
   },
   eventContent: (arg: any) => {
+    console.log('eventContent called with:', arg)
     const timedoro = arg.event.extendedProps.timedoro
+    console.log('Timedoro in eventContent:', timedoro)
+    
+    if (!timedoro) {
+      console.log('No timedoro found')
+      return { html: '<div class="p-1">加载中...</div>' }
+    }
+
+    console.log('Timedoro creations:', timedoro.creations)
+    
     return {
       html: `
         <div class="p-1 h-full">
           <div class="font-semibold">${arg.timeText}</div>
           <div class="text-sm">
-            ${timedoro.creations.map((task: Task) => `
+            ${timedoro.creations?.map((task: Task) => `
               <div class="flex items-center gap-1 mt-1">
                 <span class="w-2 h-2 rounded-full ${task.cType === 'DONE' ? 'bg-green-300' : 'bg-orange-300'}"></span>
                 <span class="truncate">${task.cName || '未命名任务'}</span>
               </div>
-            `).join('')}
+            `).join('') || '暂无任务'}
           </div>
           <div class="text-xs mt-1">
             <span class="bg-white/20 px-1 rounded">完成: ${timedoro.sumDone}</span>
@@ -129,15 +142,32 @@ const calendarOptions = computed(() => ({
 const events = computed(() => {
   if (!currentPlan?.value?.timedoroes) return []
   
+  console.log('Processing timedoroes:', currentPlan.value.timedoroes)
+  
   return currentPlan.value.timedoroes.map(timedoro => {
-    const start = dayjs(timedoro.timeSlice)
+    // 解析 UTC 时间
+    const utcTime = dayjs.utc(timedoro.timeSlice)
+    // 获取时间部分（小时和分钟）
+    const timeStr = utcTime.format('HH:mm:ss')
+    // 使用选定的日期和时间组合
+    const start = dayjs(`${selectedDate.value}T${timeStr}`)
     const end = start.add(30, 'minutes')
+    
+    console.log('Timedoro:', {
+      id: timedoro.pkTimedoro,
+      timeSlice: timedoro.timeSlice,
+      selectedDate: selectedDate.value,
+      timeStr,
+      start: start.format(),
+      end: end.format(),
+      creations: timedoro.creations
+    })
     
     return {
       id: timedoro.pkTimedoro,
       title: timedoro.creations?.map(c => c.cName).join(', ') || '专注时间',
-      start: start.format('YYYY-MM-DDTHH:mm:ss'),
-      end: end.format('YYYY-MM-DDTHH:mm:ss'),
+      start: start.format(),
+      end: end.format(),
       backgroundColor: timedoro.sumDone > 0 ? '#4DB6AC' : '#FF6B6B',
       borderColor: 'transparent',
       textColor: '#ffffff',
@@ -426,6 +456,10 @@ async function deletePlan() {
 onMounted(async () => {
   await loadPlanForDate(selectedDate.value)
 })
+import { watch } from 'vue'
+watch(events, val => {
+  console.log('events:', val)
+}, { immediate: true })
 </script>
 
 <template>
@@ -520,7 +554,6 @@ onMounted(async () => {
         </div>
       </div>
     </div>
-
     <!-- Task Selection Modal -->
     <div 
       v-if="showTaskModal"
@@ -609,7 +642,7 @@ onMounted(async () => {
                 <div class="flex items-center gap-2">
                   <span 
                     class="w-2 h-2 rounded-full"
-                    :class="task.cType === 'DONE' ? 'bg-green-500' : 'bg-brand-orange'"
+                    :class="task.cType === 'TODO' ? 'bg-green-500' : 'bg-brand-orange'"
                   ></span>
                   <span>{{ task.cName || '未命名任务' }}</span>
                 </div>
