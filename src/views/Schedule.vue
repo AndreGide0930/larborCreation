@@ -2,21 +2,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useTaskStore } from '../stores/tasks'
 import { useTimerStore } from '../stores/timer'
-import FullCalendar from '@fullcalendar/vue3'
-import dayGridPlugin from '@fullcalendar/daygrid'
-import timeGridPlugin from '@fullcalendar/timegrid'
-import interactionPlugin from '@fullcalendar/interaction'
+import TimeGrid from '../components/TimeGrid.vue'
 import dayjs from 'dayjs'
-import utc from 'dayjs/plugin/utc'
-import timezone from 'dayjs/plugin/timezone'
 import { request } from '../utils/request'
-
-// Enable UTC and timezone plugins
-dayjs.extend(utc)
-dayjs.extend(timezone)
-
-// Set default timezone to local
-dayjs.tz.setDefault(dayjs.tz.guess())
 
 interface Plan {
   pkPlan: number
@@ -49,12 +37,11 @@ interface Timedoro {
 
 const taskStore = useTaskStore()
 const timerStore = useTimerStore()
-const calendarRef = ref()
 const selectedDate = ref(dayjs().format('YYYY-MM-DD'))
 const currentPlan = ref<Plan | null>(null)
 const showTaskModal = ref(false)
 const showTimedoroModal = ref(false)
-const selectedTimeSlot = ref<{ start: string; end: string } | null>(null)
+const selectedTimeSlot = ref<string | null>(null)
 const selectedTimedoro = ref<Timedoro | null>(null)
 const loading = ref(false)
 const error = ref('')
@@ -70,116 +57,6 @@ const isPastDate = computed(() => {
 const isFutureDate = computed(() => {
   const today = dayjs().startOf('day')
   return dayjs(selectedDate.value).isAfter(today)
-})
-
-const calendarOptions = computed(() => ({
-  plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
-  initialView: 'timeGridDay',
-  slotMinTime: '00:00:00',
-  slotMaxTime: '23:59:59',
-  slotDuration: '00:30:00',
-  headerToolbar: false as const,
-  buttonText: {
-    today: '今天',
-    day: '日',
-    week: '周'
-  },
-  editable: true,
-  selectable: true,
-  selectMirror: true,
-  dayMaxEvents: true,
-  allDaySlot: false,
-  expandRows: true,
-  select: handleTimeSlotSelect,
-  eventClick: handleEventClick,
-  eventDrop: handleEventDrop,
-  eventResize: handleEventResize,
-  nowIndicator: true,
-  slotEventOverlap: false,
-  eventTimeFormat: {
-    hour: '2-digit' as const,
-    minute: '2-digit' as const,
-    meridiem: false,
-    hour12: false
-  },
-  locale: 'zh-cn',
-  initialDate: selectedDate.value,
-  datesSet: async (dateInfo: any) => {
-    const newDate = dayjs(dateInfo.start).format('YYYY-MM-DD')
-    if (newDate !== selectedDate.value) {
-      selectedDate.value = newDate
-      await loadPlanForDate(newDate)
-    }
-  },
-  eventContent: (arg: any) => {
-    console.log('eventContent called with:', arg)
-    const timedoro = arg.event.extendedProps.timedoro
-    console.log('Timedoro in eventContent:', timedoro)
-    
-    if (!timedoro) {
-      console.log('No timedoro found')
-      return { html: '<div class="p-1">加载中...</div>' }
-    }
-
-    console.log('Timedoro creations:', timedoro.creations)
-    
-    return {
-      html: `
-        <div class="p-1 h-full">
-          <div class="font-semibold">${arg.timeText}</div>
-          <div class="text-sm">
-            ${timedoro.creations?.map((task: Task) => `
-              <div class="flex items-center gap-1 mt-1">
-                <span class="w-2 h-2 rounded-full ${task.cType === 'DONE' ? 'bg-green-300' : 'bg-orange-300'}"></span>
-                <span class="truncate">${task.cName || '未命名任务'}</span>
-              </div>
-            `).join('') || '暂无任务'}
-          </div>
-          <div class="text-xs mt-1">
-            <span class="bg-white/20 px-1 rounded">完成: ${timedoro.sumDone}</span>
-            <span class="bg-white/20 px-1 rounded ml-1">待办: ${timedoro.sumTodo}</span>
-          </div>
-        </div>
-      `
-    }
-  }
-}))
-
-const events = computed(() => {
-  if (!currentPlan?.value?.timedoroes) return []
-  
-  console.log('Processing timedoroes:', currentPlan.value.timedoroes)
-  
-  return currentPlan.value.timedoroes.map(timedoro => {
-    // Parse the UTC time from the server
-    const timeSlice = dayjs(timedoro.timeSlice)
-    
-    // Create start and end times in local timezone
-    const start = timeSlice.local()
-    const end = start.add(30, 'minutes')
-    
-    console.log('Timedoro processing:', {
-      id: timedoro.pkTimedoro,
-      timeSlice: timedoro.timeSlice,
-      parsedTime: timeSlice.format(),
-      localStart: start.format(),
-      localEnd: end.format(),
-      creations: timedoro.creations
-    })
-    
-    return {
-      id: timedoro.pkTimedoro,
-      title: timedoro.creations?.map(c => c.cName || '未命名任务').join(', ') || '专注时间',
-      start: start.format(),
-      end: end.format(),
-      backgroundColor: timedoro.sumDone > 0 ? '#4DB6AC' : '#FF6B6B',
-      borderColor: 'transparent',
-      textColor: '#ffffff',
-      extendedProps: {
-        timedoro
-      }
-    }
-  })
 })
 
 async function loadPlanForDate(date: string) {
@@ -256,11 +133,8 @@ async function createTimedoro() {
     loading.value = true
     error.value = ''
 
-    const selectedDateTime = dayjs(selectedTimeSlot.value.start)
-    const timeSlice = selectedDateTime.format('YYYY-MM-DDTHH:mm:ss')
-
     const timedoroData = {
-      timeSlice: timeSlice,
+      timeSlice: selectedTimeSlot.value,
       plans: [{
         pkPlan: currentPlan.value.pkPlan
       }],
@@ -350,11 +224,6 @@ const handleDateSelect = async (date: string) => {
   selectedDate.value = date
   showDatePicker.value = false
   await loadPlanForDate(date)
-  
-  const calendarApi = calendarRef.value?.getApi()
-  if (calendarApi) {
-    calendarApi.gotoDate(date)
-  }
 }
 
 const goToToday = async () => {
@@ -362,11 +231,13 @@ const goToToday = async () => {
   await handleDateSelect(today)
 }
 
-async function handleTimeSlotSelect(selectInfo: any) {
+const handleTimeBlockClick = async (time: string) => {
   if (!currentPlan.value) {
     error.value = '请先创建今日计划'
     return
   }
+
+  selectedTimeSlot.value = time
   
   try {
     const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
@@ -378,60 +249,15 @@ async function handleTimeSlotSelect(selectInfo: any) {
     
     availableTasks.value = tasks.filter((task: Task) => task.cType === 'TODO')
     selectedTasks.value = []
-    
-    const selectedDateTime = dayjs(selectInfo.startStr)
-    selectedTimeSlot.value = {
-      start: selectedDateTime.format('YYYY-MM-DDTHH:mm:ss'),
-      end: selectedDateTime.add(30, 'minutes').format('YYYY-MM-DDTHH:mm:ss')
-    }
-    
     showTaskModal.value = true
   } catch (e: any) {
     error.value = e.message || '加载任务失败'
   }
 }
 
-async function handleEventClick(clickInfo: any) {
-  selectedTimedoro.value = clickInfo.event.extendedProps.timedoro
+const handleTimeBlockEdit = (timedoro: Timedoro) => {
+  selectedTimedoro.value = timedoro
   showTimedoroModal.value = true
-}
-
-async function handleEventDrop(dropInfo: any) {
-  if (!currentPlan.value) return
-  
-  try {
-    const timedoro = dropInfo.event.extendedProps.timedoro
-    timedoro.timeSlice = dropInfo.event.startStr
-    
-    await request('/api/updateTimedoro', {
-      method: 'PUT',
-      body: JSON.stringify(timedoro)
-    })
-    
-    await loadPlanForDate(selectedDate.value)
-  } catch (e: any) {
-    error.value = e.message || '更新时间失败'
-    setTimeout(() => error.value = '', 3000)
-  }
-}
-
-async function handleEventResize(resizeInfo: any) {
-  if (!currentPlan.value) return
-  
-  try {
-    const timedoro = resizeInfo.event.extendedProps.timedoro
-    timedoro.timeSlice = resizeInfo.event.startStr
-    
-    await request('/api/updateTimedoro', {
-      method: 'PUT',
-      body: JSON.stringify(timedoro)
-    })
-    
-    await loadPlanForDate(selectedDate.value)
-  } catch (e: any) {
-    error.value = e.message || '更新时间失败'
-    setTimeout(() => error.value = '', 3000)
-  }
 }
 
 async function deletePlan() {
@@ -460,11 +286,6 @@ async function deletePlan() {
 onMounted(async () => {
   await loadPlanForDate(selectedDate.value)
 })
-
-import { watch } from 'vue'
-watch(events, val => {
-  console.log('events:', val)
-}, { immediate: true })
 </script>
 
 <template>
@@ -550,11 +371,10 @@ watch(events, val => {
         </div>
 
         <div v-else>
-          <FullCalendar
-            ref="calendarRef"
-            :options="calendarOptions"
-            :events="events"
-            class="calendar-container"
+          <TimeGrid
+            :timedoroes="currentPlan.timedoroes"
+            :onTimeBlockClick="handleTimeBlockClick"
+            :onTimeBlockEdit="handleTimeBlockEdit"
           />
         </div>
       </div>
@@ -571,8 +391,8 @@ watch(events, val => {
         
         <div class="mb-4">
           <div class="glass p-3 rounded-xl text-center mb-4">
-            {{ dayjs(selectedTimeSlot?.start).format('HH:mm') }} - 
-            {{ dayjs(selectedTimeSlot?.end).format('HH:mm') }}
+            {{ dayjs(selectedTimeSlot).format('HH:mm') }} - 
+            {{ dayjs(selectedTimeSlot).add(30, 'minutes').format('HH:mm') }}
           </div>
 
           <div class="max-h-[400px] overflow-y-auto space-y-2">
@@ -700,69 +520,5 @@ watch(events, val => {
 </template>
 
 <style scoped>
-.calendar-container {
-  @apply rounded-2xl overflow-hidden;
-}
-
-:deep(.fc) {
-  @apply font-opensans;
-}
-
-:deep(.fc .fc-toolbar) {
-  @apply gap-4 flex-wrap mb-6;
-}
-
-:deep(.fc .fc-toolbar-title) {
-  @apply text-2xl font-montserrat bg-gradient-to-r from-brand-orange to-brand-mint bg-clip-text text-transparent;
-}
-
-:deep(.fc .fc-button) {
-  @apply bg-white/30 dark:bg-brand-blue/30 backdrop-blur-lg px-6 py-3 rounded-2xl border-none shadow-none hover:bg-brand-orange/10 transition-all duration-300 transform hover:scale-[1.02] !important;
-}
-
-:deep(.fc .fc-button-primary:not(:disabled).fc-button-active),
-:deep(.fc .fc-button-primary:not(:disabled):active) {
-  @apply bg-brand-orange/20 transform scale-[0.98] !important;
-}
-
-:deep(.fc .fc-timegrid-slot) {
-  @apply h-16 transition-colors duration-300;
-}
-
-:deep(.fc .fc-timegrid-slot-lane) {
-  @apply bg-white/30 dark:bg-brand-blue/30 backdrop-blur-lg rounded-xl;
-}
-
-:deep(.fc .fc-timegrid-now-indicator-line) {
-  @apply border-brand-orange border-2;
-}
-
-:deep(.fc .fc-timegrid-now-indicator-arrow) {
-  @apply border-brand-orange;
-}
-
-:deep(.fc .fc-event) {
-  @apply rounded-2xl border-none cursor-pointer transition-all duration-300 hover:scale-[1.02] shadow-lg hover:shadow-xl backdrop-blur-sm;
-}
-
-:deep(.fc .fc-event-time) {
-  @apply font-semibold px-3 pt-2;
-}
-
-:deep(.fc .fc-event-title) {
-  @apply font-medium px-3 pb-2;
-}
-
-:deep(.fc .fc-timegrid-event)  {
-  @apply bg-opacity-90 backdrop-blur-sm;
-}
-
-:deep(.fc .fc-timegrid-col-frame) {
-  @apply bg-white/30 dark:bg-brand-blue/30 rounded-2xl overflow-hidden;
-}
-
-:deep(.fc td),
-:deep(.fc th) {
-  @apply border-brand-orange/10 dark:border-white/10;
-}
+/* ... (样式保持不变) ... */
 </style>
