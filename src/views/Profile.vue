@@ -7,6 +7,7 @@ import { request, put, multipartPost } from '../utils/request'
 import Toast from '../components/Toast.vue'
 import Modal from '../components/Modal.vue'
 import FormError from '../components/FormError.vue'
+import SystemSettings from '../components/SystemSettings.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -397,23 +398,7 @@ const handleLogout = async () => {
         <!-- Settings Section -->
         <div class="mt-8 pt-8 border-t border-brand-orange/10">
           <h3 class="text-xl font-medium mb-4">{{ t('profile.systemSettings') }}</h3>
-          <div class="space-y-4">
-            <label class="flex items-center justify-between p-4 glass rounded-xl cursor-pointer hover:bg-brand-orange/5 transition-colors">
-              <span>{{ t('profile.darkMode') }}</span>
-              <div class="relative">
-                <input
-                  v-model="userProfile.preferences.darkMode"
-                  type="checkbox"
-                  class="sr-only"
-                >
-                <div class="w-14 h-7 bg-gray-200 rounded-full transition-colors duration-200"
-                  :class="{ 'bg-brand-orange': userProfile.preferences.darkMode }">
-                  <div class="w-7 h-7 bg-white rounded-full shadow transform transition-transform duration-200"
-                    :class="{ 'translate-x-7': userProfile.preferences.darkMode }"></div>
-                </div>
-              </div>
-            </label>
-          </div>
+          <SystemSettings />
         </div>
 
         <!-- Logout Button -->
