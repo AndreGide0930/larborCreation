@@ -143,13 +143,13 @@ const addTask = async () => {
 
 const startFocusMode = (task: TodoItem) => {
   console.log('Starting focus mode with task:', task)
-  timerStore.startTimer({
+  timerStore.startTimer([{
     id: task.pkCreation,
     title: task.cName,
     description: task.cSynopsis || '',
     priority: task.cPriority,
     type: task.cType
-  })
+  }])
 }
 
 const deleteTask = async (pkCreation: number) => {
