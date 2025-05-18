@@ -14,12 +14,22 @@ interface Task {
   updateTime?: string
 }
 
+interface Plan {
+  pkPlan: number
+  planDate: string
+  planName: string
+  fkUserInfoId: number
+  timedoroes: Timedoro[]
+}
+
 interface Timedoro {
   pkTimedoro: number
   timeSlice: string
   creations: Task[]
+  plans: Plan[]
   sumDone: number
   sumTodo: number
+  fkUserInfo: number
 }
 
 const props = defineProps<{

@@ -58,7 +58,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Dynamic_UserInfo'
   /UpdateUser:
-    post:
+    put:
       tags:
         - UserController
       operationId: updateUser
@@ -106,8 +106,27 @@ paths:
               schema:
                 type: integer
                 format: int32
-  /auth/login:
+  /auth/changeEnabled:
     post:
+      tags:
+        - AuthController
+      operationId: changeEnabled
+      parameters:
+        - name: pkUserInfo
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+  /auth/login:
+    get:
       tags:
         - AuthController
       operationId: login_2
@@ -134,17 +153,12 @@ paths:
       tags:
         - AuthController
       operationId: register
-      parameters:
-        - name: email
-          in: query
-          required: true
-          schema:
-            type: string
-        - name: code
-          in: query
-          required: true
-          schema:
-            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dynamic_UserInfo'
+        required: true
       responses:
         200:
           description: OK

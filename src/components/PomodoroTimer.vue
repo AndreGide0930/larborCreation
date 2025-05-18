@@ -18,8 +18,8 @@ const seconds = ref(0)
 let timerInterval: NodeJS.Timeout | undefined
 
 onMounted(() => {
-  if (timerStore.activeTask) {
-    minutes.value = timerStore.activeTask.duration
+  if (timerStore.activeTasks.length > 0) {
+    minutes.value = timerStore.activeTasks[0].duration
   }
 })
 
@@ -43,6 +43,12 @@ const startTimer = () => {
     } else {
       pauseTimer()
       isRunning.value = false
+      if (timerStore.activeTasks.length > 0) {
+        const currentTask = timerStore.activeTasks[0]
+        if (!currentTask.completed) {
+          timerStore.toggleTaskCompletion(currentTask.id)
+        }
+      }
     }
   }, 1000)
 }
@@ -54,17 +60,23 @@ const pauseTimer = () => {
 const resetTimer = () => {
   pauseTimer()
   isRunning.value = false
-  if (timerStore.activeTask) {
-    minutes.value = timerStore.activeTask.duration
+  if (timerStore.activeTasks.length > 0) {
+    minutes.value = timerStore.activeTasks[0].duration
   } else {
     minutes.value = 25
   }
   seconds.value = 0
 }
 
-const completeEarly = () => {
+const completeEarly = async () => {
   pauseTimer()
   isRunning.value = false
+  if (timerStore.activeTasks.length > 0) {
+    const currentTask = timerStore.activeTasks[0]
+    if (!currentTask.completed) {
+      await timerStore.toggleTaskCompletion(currentTask.id)
+    }
+  }
   emit('earlyComplete')
 }
 

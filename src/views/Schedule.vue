@@ -4,7 +4,11 @@ import { useTaskStore } from '../stores/tasks'
 import { useTimerStore } from '../stores/timer'
 import TimeGrid from '../components/TimeGrid.vue'
 import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
 import { request } from '../utils/request'
+
+// 启用 UTC 插件
+dayjs.extend(utc)
 
 interface Plan {
   pkPlan: number
@@ -33,6 +37,7 @@ interface Timedoro {
   plans: Plan[]
   sumDone: number
   sumTodo: number
+  fkUserInfo: number
 }
 
 const taskStore = useTaskStore()
@@ -48,6 +53,9 @@ const error = ref('')
 const showDatePicker = ref(false)
 const availableTasks = ref<Task[]>([])
 const selectedTasks = ref<number[]>([])
+const showAddTaskModal = ref(false)
+const availableTasksForEdit = ref<Task[]>([])
+const selectedTasksForEdit = ref<number[]>([])
 
 const isPastDate = computed(() => {
   const today = dayjs().startOf('day')
@@ -133,6 +141,21 @@ async function createTimedoro() {
     loading.value = true
     error.value = ''
 
+    // 获取选中任务的完整信息
+    const selectedTasksInfo = await Promise.all(
+      selectedTasks.value.map(async (taskId) => {
+        const response = await request('/api/readOneWork', {
+          params: {
+            pkCreation: taskId
+          }
+        })
+        return response
+      })
+    )
+
+    // 计算统计数据
+    const stats = calculateStats(selectedTasksInfo)
+
     const timedoroData = {
       timeSlice: selectedTimeSlot.value,
       plans: [{
@@ -140,8 +163,12 @@ async function createTimedoro() {
       }],
       creations: selectedTasks.value.map(taskId => ({
         pkCreation: taskId
-      }))
+      })),
+      sumDone: stats.sumDone,
+      sumTodo: stats.sumTodo
     }
+
+    console.log('Creating timedoro with data:', timedoroData)
 
     await request('/api/createTimedoro', {
       method: 'POST',
@@ -203,6 +230,14 @@ async function deleteTimedoro(pkTimedoro: number) {
   }
 }
 
+// 添加一个计算统计数据的函数
+const calculateStats = (creations: Task[]) => {
+  return {
+    sumDone: creations.filter(task => task.cType === 'DONE').length,
+    sumTodo: creations.filter(task => task.cType === 'TODO').length
+  }
+}
+
 async function removeTaskFromTimedoro(pkCreation: number, pkTimedoro: number) {
   try {
     loading.value = true
@@ -212,7 +247,37 @@ async function removeTaskFromTimedoro(pkCreation: number, pkTimedoro: number) {
       method: 'DELETE'
     })
 
+    // 更新当前选中的 timedoro 的 creations 列表
+    if (selectedTimedoro.value) {
+      const updatedCreations = selectedTimedoro.value.creations.filter(task => task.pkCreation !== pkCreation)
+      const stats = calculateStats(updatedCreations)
+      
+      selectedTimedoro.value = {
+        ...selectedTimedoro.value,
+        creations: updatedCreations,
+        sumDone: stats.sumDone,
+        sumTodo: stats.sumTodo
+      }
+    }
+
+    // 重新加载计划数据以更新视图
     await loadPlanForDate(selectedDate.value)
+
+    // 如果模态框是打开的，重新加载可用任务列表
+    if (showAddTaskModal.value) {
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      const tasks = await request('/api/readAllWorkById', {
+        params: {
+          pkUserInfo: userInfo.pkUserInfo
+        }
+      })
+      
+      // 更新可用任务列表，过滤掉已经在 timedoro 中的任务
+      availableTasksForEdit.value = tasks.filter((task: Task) => 
+        task.cType === 'TODO' && 
+        !selectedTimedoro.value?.creations.some(creation => creation.pkCreation === task.pkCreation)
+      )
+    }
   } catch (e: any) {
     error.value = e.message || '移除任务失败'
   } finally {
@@ -237,16 +302,20 @@ const handleTimeBlockClick = async (time: string) => {
     return
   }
 
+  // 将时间字符串转换为完整的日期时间
   const timeStr = time.split(':')
   const hours = parseInt(timeStr[0])
   const minutes = parseInt(timeStr[1])
+  
+  // 使用本地时间创建日期时间对象
   const selectedDateTime = dayjs(selectedDate.value)
     .hour(hours)
     .minute(minutes)
     .second(0)
     .millisecond(0)
   
-  selectedTimeSlot.value = selectedDateTime.format('YYYY-MM-DDTHH:mm:ss')
+  // 转换为 UTC 时间
+  selectedTimeSlot.value = selectedDateTime.utc().format()
   
   try {
     const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
@@ -290,6 +359,143 @@ async function deletePlan() {
   } finally {
     loading.value = false
   }
+}
+
+// 添加一个计算属性来处理时间显示
+const formattedTimeSlot = computed(() => {
+  if (!selectedTimeSlot.value) return { start: '--:--', end: '--:--' }
+  const time = dayjs.utc(selectedTimeSlot.value).local()
+  return {
+    start: time.format('HH:mm'),
+    end: time.add(30, 'minutes').format('HH:mm')
+  }
+})
+
+const handleAddTask = async () => {
+  try {
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+    const tasks = await request('/api/readAllWorkById', {
+      params: {
+        pkUserInfo: userInfo.pkUserInfo
+      }
+    })
+    
+    // 过滤出未在当前 timedoro 中的待办任务
+    availableTasksForEdit.value = tasks.filter((task: Task) => 
+      task.cType === 'TODO' && 
+      !selectedTimedoro.value?.creations.some(creation => creation.pkCreation === task.pkCreation)
+    )
+    selectedTasksForEdit.value = []
+    showAddTaskModal.value = true
+  } catch (e: any) {
+    error.value = e.message || '加载任务失败'
+  }
+}
+
+const handleAddTasksToTimedoro = async () => {
+  if (!selectedTimedoro.value || selectedTasksForEdit.value.length === 0) return
+
+  try {
+    loading.value = true
+    error.value = ''
+
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+    if (!userInfo.pkUserInfo) {
+      throw new Error('用户信息不完整，请重新登录')
+    }
+
+    // 获取选中任务的完整信息
+    const selectedTasks = await Promise.all(
+      selectedTasksForEdit.value.map(async (taskId) => {
+        const response = await request('/api/readOneWork', {
+          params: {
+            pkCreation: taskId
+          }
+        })
+        return response
+      })
+    )
+
+    // 创建新的 creations 数组
+    const updatedCreations = [
+      ...selectedTimedoro.value.creations,
+      ...selectedTasks
+    ]
+
+    // 计算新的统计数据
+    const stats = calculateStats(updatedCreations)
+
+    // 更新 timedoro
+    const apiTimedoro = {
+      pkTimedoro: selectedTimedoro.value.pkTimedoro,
+      timeSlice: selectedTimedoro.value.timeSlice,
+      creations: updatedCreations.map(task => ({ pkCreation: task.pkCreation })),
+      sumDone: stats.sumDone,
+      sumTodo: stats.sumTodo,
+      fkUserInfo: selectedTimedoro.value.fkUserInfo
+    }
+
+    await request('/api/updateTimedoro', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(apiTimedoro)
+    })
+
+    // 更新本地状态
+    selectedTimedoro.value = {
+      ...selectedTimedoro.value,
+      creations: updatedCreations,
+      sumDone: stats.sumDone,
+      sumTodo: stats.sumTodo
+    }
+
+    // 重新加载计划数据以更新视图
+    await loadPlanForDate(selectedDate.value)
+
+    // 更新可用任务列表
+    const tasks = await request('/api/readAllWorkById', {
+      params: {
+        pkUserInfo: userInfo.pkUserInfo
+      }
+    })
+    
+    availableTasksForEdit.value = tasks.filter((task: Task) => 
+      task.cType === 'TODO' && 
+      !updatedCreations.some(creation => creation.pkCreation === task.pkCreation)
+    )
+    
+    // 清空已选择的任务
+    selectedTasksForEdit.value = []
+  } catch (e: any) {
+    error.value = e.message || '更新专注时间失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+const startFocus = () => {
+  if (!selectedTimedoro.value || selectedTimedoro.value.creations.length === 0) return
+
+  // 获取未完成的任务
+  const todoTasks = selectedTimedoro.value.creations.filter(task => task.cType === 'TODO')
+  if (todoTasks.length === 0) {
+    error.value = '没有待办任务可以专注'
+    return
+  }
+
+  // 将所有待办任务传入番茄钟
+  const tasks = todoTasks.map(task => ({
+    id: task.pkCreation,
+    title: task.cName,
+    description: task.cSynopsis || '',
+    priority: task.cPriority,
+    type: task.cType
+  }))
+
+  timerStore.startTimer(tasks)
+  showTimedoroModal.value = false
 }
 
 onMounted(async () => {
@@ -400,8 +606,8 @@ onMounted(async () => {
         
         <div class="mb-4">
           <div class="glass p-3 rounded-xl text-center mb-4">
-            {{ selectedTimeSlot ? dayjs(selectedTimeSlot).format('HH:mm') : '--:--' }} - 
-            {{ selectedTimeSlot ? dayjs(selectedTimeSlot).add(30, 'minutes').format('HH:mm') : '--:--' }}
+            {{ formattedTimeSlot.start }} - 
+            {{ formattedTimeSlot.end }}
           </div>
 
           <div class="max-h-[400px] overflow-y-auto space-y-2">
@@ -461,13 +667,21 @@ onMounted(async () => {
           <div class="glass p-4 rounded-xl">
             <h3 class="font-semibold mb-2">时间</h3>
             <div class="text-center text-xl">
-              {{ dayjs(selectedTimedoro.timeSlice).format('HH:mm') }} - 
-              {{ dayjs(selectedTimedoro.timeSlice).add(30, 'minutes').format('HH:mm') }}
+              {{ formattedTimeSlot.start }} - 
+              {{ formattedTimeSlot.end }}
             </div>
           </div>
 
           <div class="glass p-4 rounded-xl">
-            <h3 class="font-semibold mb-2">关联任务</h3>
+            <div class="flex justify-between items-center mb-2">
+              <h3 class="font-semibold">关联任务</h3>
+              <button
+                @click="handleAddTask"
+                class="glass px-3 py-1 rounded-lg text-sm hover:bg-brand-orange/10 transition-colors"
+              >
+                新增任务
+              </button>
+            </div>
             <div class="space-y-2">
               <div 
                 v-for="task in selectedTimedoro.creations" 
@@ -509,11 +723,11 @@ onMounted(async () => {
 
         <div class="flex gap-4 mt-8">
           <button
-            @click="updateTimedoro"
-            :disabled="loading"
+            @click="startFocus"
+            :disabled="loading || !selectedTimedoro.creations.some(task => task.cType === 'TODO')"
             class="flex-1 bg-gradient-to-r from-brand-orange to-brand-mint text-white py-3 rounded-xl font-medium transition-all hover:opacity-90"
           >
-            {{ loading ? '更新中...' : '更新时间块' }}
+            {{ loading ? '加载中...' : '现在专注' }}
           </button>
           <button
             @click="deleteTimedoro(selectedTimedoro.pkTimedoro)"
@@ -521,6 +735,60 @@ onMounted(async () => {
             class="glass px-6 py-3 rounded-xl text-red-500 hover:bg-red-500/10 transition-colors"
           >
             删除
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 添加新增任务的模态框 -->
+    <div 
+      v-if="showAddTaskModal"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm"
+      @click.self="showAddTaskModal = false"
+    >
+      <div class="neumorphic p-8 rounded-2xl w-full max-w-md">
+        <h2 class="text-2xl font-bold mb-6">添加任务</h2>
+        
+        <div class="mb-4">
+          <div class="max-h-[400px] overflow-y-auto space-y-2">
+            <label 
+              v-for="task in availableTasksForEdit" 
+              :key="task.pkCreation"
+              class="glass p-3 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-brand-orange/5 transition-colors"
+            >
+              <input 
+                type="checkbox"
+                :value="task.pkCreation"
+                v-model="selectedTasksForEdit"
+                class="w-5 h-5 rounded-lg accent-brand-orange"
+              >
+              <div class="flex-1">
+                <div class="font-medium">{{ task.cName || '未命名任务' }}</div>
+                <div v-if="task.cSynopsis" class="text-sm opacity-75">{{ task.cSynopsis }}</div>
+                <div class="flex gap-2 mt-1">
+                  <span class="text-xs px-2 py-1 rounded-full bg-brand-orange/10 text-brand-orange">
+                    优先级: {{ task.cPriority }}
+                  </span>
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex gap-4 pt-4">
+          <button
+            @click="handleAddTasksToTimedoro"
+            :disabled="loading || selectedTasksForEdit.length === 0"
+            class="flex-1 bg-gradient-to-r from-brand-orange to-brand-mint text-white py-3 rounded-xl font-medium transition-all hover:opacity-90 disabled:opacity-50"
+          >
+            {{ loading ? '添加中...' : '添加任务' }}
+          </button>
+          <button
+            type="button"
+            @click="showAddTaskModal = false"
+            class="glass px-6 py-3 rounded-xl hover:bg-brand-orange/10 transition-colors"
+          >
+            取消
           </button>
         </div>
       </div>

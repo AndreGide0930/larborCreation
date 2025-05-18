@@ -1,0 +1,181 @@
+package com.example.demo2.controller;
+
+import com.example.demo2.entity.*;
+import com.example.demo2.service.MailService;
+import com.example.demo2.utils.CodeUtils;
+import com.example.demo2.utils.JwtUtils;
+import org.apache.catalina.User;
+import org.babyfish.jimmer.client.meta.Api;
+import org.babyfish.jimmer.sql.JSqlClient;
+import org.babyfish.jimmer.sql.ast.mutation.SaveMode;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Map;
+
+import static java.util.regex.Pattern.matches;
+
+@Api
+@RestController
+@RequestMapping("/auth")
+public class AuthController {
+
+    private final JSqlClient sqlClient;
+
+    private final UserInfoTable userTable = UserInfoTable.$;
+
+    @Autowired
+    private MailService mailService;
+
+    public AuthController(JSqlClient sqlClient) {
+        this.sqlClient = sqlClient;
+    }
+
+    @Api
+    @PostMapping("/sendCode")
+    public ResponseEntity<Object> sendCode(@RequestParam String email) {
+        String code = CodeUtils.generateCode();
+        // 明确指定 UTC 时区
+        Instant now = Instant.now();
+        Instant expiryInstant = now.plus(5, ChronoUnit.MINUTES);
+        Timestamp expiryTime = Timestamp.from(expiryInstant);
+
+            // 更新现有用户（必须包含id）
+            UserInfo user = sqlClient.createQuery(userTable)
+                    .where(userTable.email().eq(email))
+                    .select(userTable)
+                    .fetchOne();
+            user = UserInfoDraft.$.produce(user, draft -> draft
+                    .setVerificationCode(code)
+                    .setVerificationCodeExpiry(expiryTime)
+            );
+            sqlClient.save(user, SaveMode.UPDATE_ONLY);
+
+
+        mailService.sendVerificationCode(email, code);
+        return ResponseEntity.ok("验证码已发送");
+    }
+
+
+
+
+    @Api
+    @PostMapping("/verifyCode")
+    public ResponseEntity<Object> verifyCode(@RequestParam String email,
+                                        @RequestParam String code) {
+        UserInfo user = sqlClient.createQuery(userTable)
+                .where(userTable.email().eq(email))
+                .select(userTable)
+                .fetchOne();
+
+        if (user.verificationCodeExpiry().before(new Timestamp(System.currentTimeMillis()))) {
+            return ResponseEntity.badRequest().body("验证码已过期");
+        }
+
+        if (!user.verificationCode().equals(code)) {
+            return ResponseEntity.badRequest().body("验证码错误");
+        }else{
+            UserInfo user1 = UserInfoDraft.$.produce(user, draft -> draft
+                .setEnabled(true));
+            sqlClient.save(user1).getModifiedEntity();
+        }
+
+
+        return ResponseEntity.ok(Map.of(
+                "token", JwtUtils.generateToken(email),
+                "userInfo", user // 返回用户完整信息
+        ));
+    }
+
+
+    @Api
+    @PostMapping("/register")
+    public ResponseEntity<Object> register(@RequestBody UserInfo user) {
+        UserInfo existingUser = sqlClient.createQuery(userTable)
+                .where(userTable.email().eq(user.email()))
+                .select(userTable)
+                .fetchOneOrNull();
+
+        if (existingUser != null) {
+            return ResponseEntity.status(409)
+                    .body("邮箱已存在");
+        }
+
+        UserInfo newUser = UserInfoDraft.$.produce(draft -> {
+            draft.setUsername(user.username());
+            draft.setEmail(user.email());
+            draft.setEnabled(false);
+        });
+
+        UserInfo savedUser = sqlClient.insert(newUser).getModifiedEntity();
+
+        assignDefaultRole(savedUser);
+        sendCode(savedUser.email());
+
+        return ResponseEntity.ok("注册成功");
+
+    }
+
+
+    @Api
+    @GetMapping("/login")
+    public ResponseEntity<Object> login(
+            @RequestParam String email,
+            @RequestParam String username
+    ) {
+        UserInfo user = sqlClient.createQuery(userTable)
+                .where(userTable.email().eq(email))
+                .select(userTable)
+                .fetchOne();
+
+        if (user == null){
+            return ResponseEntity.badRequest().body("用户不存在");
+        }
+        if (!(user.enabled() && matches(username, user.username()) && matches(email, user.email()) )) {
+            return ResponseEntity.status(401).body("邮箱或用户名错误");
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "token", JwtUtils.generateToken(user.email()),
+                "user", user
+        ));
+    }
+
+    // 辅助方法
+    private void assignDefaultRole(UserInfo user) {
+        sqlClient.getAssociations(RoleProps.USERS)
+                .save(2, user.pkUserInfo()); // 普通用户角色
+    }
+
+    @Api
+    @PostMapping("/changeEnabled")
+    public ResponseEntity<Object> changeEnabled(long pkUserInfo) {
+        UserInfo user = sqlClient.
+                createQuery(userTable)
+                .where(userTable.pkUserInfo().eq(pkUserInfo))
+                .select(userTable)
+                .execute()
+                .get(0);
+        if (user.enabled()){
+            UserInfo user1 = UserInfoDraft.$.produce(user,draft -> {
+                draft.setEnabled(false);
+            });
+            sqlClient.update(user1).getModifiedEntity();
+            return ResponseEntity.badRequest().body("禁用用户");
+        }
+
+        else{
+            UserInfo user1 = UserInfoDraft.$.produce(user,draft -> {
+                draft.setEnabled(true);
+
+            });
+            sqlClient.update(user1).getModifiedEntity();
+            return ResponseEntity.badRequest().body("启用用户");
+
+        }
+    }
+}
