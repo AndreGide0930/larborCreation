@@ -414,14 +414,14 @@ onMounted(() => {
               @click.stop="handleDownload(work)"
               class="bg-blue-500 hover:bg-blue-600 text-white opacity-0 group-hover:opacity-100 transition-all p-2 rounded-full shadow-md hover:shadow-lg"
             >
-              <i class="fas fa-download"></i>
+              <i class="fas fa-download"></i> ↓
             </button>
             <button 
               v-if="work.pkCreation"
               @click.stop="handleDelete(work)"
               class="bg-red-500 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-all p-2 rounded-full shadow-md hover:shadow-lg"
             >
-              <i class="fas fa-trash-alt"></i>
+              <i class="fas fa-trash-alt"></i> ×
             </button>
             <i 
               :class="{

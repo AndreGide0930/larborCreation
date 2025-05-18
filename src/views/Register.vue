@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '../stores/auth'
+import { post } from '../utils/request'
 
 const router = useRouter()
-const authStore = useAuthStore()
 
 const email = ref('')
-const verificationCode = ref('')
-const showVerification = ref(false)
+const username = ref('')
+const loading = ref(false)
+const error = ref('')
 
 const isValidEmail = computed(() => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -16,50 +16,32 @@ const isValidEmail = computed(() => {
 })
 
 const canSubmit = computed(() => {
-  if (showVerification.value) {
-    return verificationCode.value.length === 6
-  }
-  return email.value && isValidEmail.value
+  return email.value && username.value && isValidEmail.value
 })
 
-const handleSendCode = async () => {
-  if (!canSubmit.value) return
+const handleRegister = async () => {
+  if (!canSubmit.value || loading.value) return
 
-  const result = await authStore.signInWithOTP(email.value)
-
-  if (result.success) {
-    showVerification.value = true
-  }
-}
-
-const handleVerify = async () => {
-  if (!verificationCode.value) return
+  loading.value = true
+  error.value = ''
 
   try {
-    const response = await fetch('/auth/verifyCode', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        email: email.value,
-        code: verificationCode.value
-      })
+    const response = await post('/api/auth/register', {
+      email: email.value,
+      username: username.value,
+      enabled: false
     })
 
-    const data = await response.json()
-    
-    if (response.ok) {
-      // 保存token到localStorage
-      localStorage.setItem('token', data.token)
-      // 可以选择是否保存用户信息
-      localStorage.setItem('userInfo', JSON.stringify(data.userInfo))
-      router.push('/')
+    if (response === '注册成功') {
+      // 注册成功后跳转到登录页，使用完整页面刷新
+      window.location.href = '/login'
     } else {
-      authStore.error = data.error || '验证失败'
+      throw new Error('注册失败：服务器响应格式不正确')
     }
-  } catch (error) {
-    authStore.error = '验证过程发生错误'
+  } catch (e: any) {
+    error.value = e.message || '注册失败'
+  } finally {
+    loading.value = false
   }
 }
 </script>
@@ -71,80 +53,44 @@ const handleVerify = async () => {
         创建账号
       </h1>
 
-      <div v-if="!showVerification">
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium mb-1">邮箱地址</label>
-            <input
-              v-model="email"
-              type="email"
-              class="glass w-full p-3 rounded-xl"
-              :class="{ 'border-red-500': email && !isValidEmail }"
-              placeholder="请输入邮箱地址"
-              required
-            >
-            <p v-if="email && !isValidEmail" class="mt-1 text-sm text-red-500">
-              请输入有效的邮箱地址
-            </p>
-          </div>
-        </div>
-
-        <button
-          @click="handleSendCode"
-          :disabled="!canSubmit || authStore.loading"
-          class="w-full mt-6 bg-gradient-to-r from-brand-orange to-brand-mint text-white py-3 rounded-xl font-medium transition-all"
-          :class="canSubmit && !authStore.loading ? 'hover:opacity-90' : 'opacity-50 cursor-not-allowed'"
-        >
-          <span v-if="authStore.loading">发送中...</span>
-          <span v-else>发送验证码</span>
-        </button>
-      </div>
-
-      <div v-else class="space-y-6">
+      <div class="space-y-4">
         <div>
-          <label class="block text-sm font-medium mb-1">验证码</label>
+          <label class="block text-sm font-medium mb-1">邮箱地址</label>
           <input
-            v-model="verificationCode"
-            type="text"
-            maxlength="6"
-            class="glass w-full p-3 rounded-xl text-center text-2xl tracking-wider"
-            placeholder="请输入验证码"
+            v-model="email"
+            type="email"
+            class="glass w-full p-3 rounded-xl"
+            :class="{ 'border-red-500': email && !isValidEmail }"
+            placeholder="请输入邮箱地址"
           >
-        </div>
-
-        <div class="text-center">
-          <p class="text-sm text-brand-blue/60 dark:text-white/60">
-            没有收到验证码？
+          <p v-if="email && !isValidEmail" class="mt-1 text-sm text-red-500">
+            请输入有效的邮箱地址
           </p>
-          <button
-            @click="handleSendCode"
-            :disabled="!authStore.canResendCode"
-            class="mt-2 text-brand-orange hover:underline disabled:opacity-50 disabled:no-underline"
-          >
-            {{ authStore.canResendCode ? '重新发送' : `${authStore.verificationTimer}秒后重试` }}
-          </button>
         </div>
 
-        <button
-          @click="handleVerify"
-          :disabled="verificationCode.length !== 6 || authStore.loading"
-          class="w-full bg-gradient-to-r from-brand-orange to-brand-mint text-white py-3 rounded-xl font-medium transition-all"
-          :class="verificationCode.length === 6 && !authStore.loading ? 'hover:opacity-90' : 'opacity-50 cursor-not-allowed'"
-        >
-          <span v-if="authStore.loading">验证中...</span>
-          <span v-else>创建账号</span>
-        </button>
-
-        <button
-          @click="showVerification = false"
-          class="w-full mt-4 glass py-3 rounded-xl font-medium hover:bg-brand-orange/10 transition-colors"
-        >
-          返回
-        </button>
+        <div>
+          <label class="block text-sm font-medium mb-1">用户名</label>
+          <input
+            v-model="username"
+            type="text"
+            class="glass w-full p-3 rounded-xl"
+            placeholder="请输入用户名"
+          >
+        </div>
       </div>
 
-      <p v-if="authStore.error" class="mt-4 text-red-500 text-center">
-        {{ authStore.error }}
+      <button
+        @click="handleRegister"
+        :disabled="!canSubmit || loading"
+        class="w-full mt-6 bg-gradient-to-r from-brand-orange to-brand-mint text-white py-3 rounded-xl font-medium transition-all"
+        :class="canSubmit && !loading ? 'hover:opacity-90' : 'opacity-50 cursor-not-allowed'"
+      >
+        <span v-if="loading">注册中...</span>
+        <span v-else>注册</span>
+      </button>
+
+      <p v-if="error" class="mt-4 text-red-500 text-center">
+        {{ error }}
       </p>
 
       <div class="mt-8 text-center">

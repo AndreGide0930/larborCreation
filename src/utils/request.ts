@@ -1,6 +1,10 @@
-// 通用请求函数（使用 Vite 代理，URL 以 /api 开头）
+// 扩展 RequestInit 类型
+interface ExtendedRequestInit extends RequestInit {
+  params?: Record<string, any>;
+}
 
-export const request = async (url: string, options: RequestInit & { params?: Record<string, any> } = {}) => {
+// 通用请求函数（使用 Vite 代理，URL 以 /api 开头）
+export const request = async (url: string, options: ExtendedRequestInit = {}) => {
   const token = localStorage.getItem('token')
 
   // 登录/验证码接口不携带 token
@@ -83,22 +87,21 @@ export const request = async (url: string, options: RequestInit & { params?: Rec
 }
 
 // 封装常用请求方法
-export const get = (url: string, options: RequestInit & { params?: Record<string, any> } = {}) =>
+export const get = (url: string, options: ExtendedRequestInit = {}) =>
   request(url, { ...options, method: 'GET' })
 
-export const post = (url: string, data: any, options: RequestInit = {}) =>
+export const post = (url: string, data: any, options: ExtendedRequestInit = {}) =>
   request(url, {
     ...options,
     method: 'POST',
-    body: JSON.stringify(data),
+    body: data ? JSON.stringify(data) : undefined,
     headers: {
       'Content-Type': 'application/json',
       ...options.headers
     }
   })
 
-
-export const multipartPost = (url: string, formData: FormData, options: RequestInit = {}) => {
+export const multipartPost = (url: string, formData: FormData, options: ExtendedRequestInit = {}) => {
   const { headers, ...restOptions } = options
   return request(url, {
     ...restOptions,
@@ -110,14 +113,14 @@ export const multipartPost = (url: string, formData: FormData, options: RequestI
   })
 }
 
-export const put = (url: string, data: any, options: RequestInit = {}) =>
+export const put = (url: string, data: any, options: ExtendedRequestInit = {}) =>
   request(url, {
     ...options,
     method: 'PUT',
     body: JSON.stringify(data)
   })
 
-export const del = (url: string, options: RequestInit = {}) =>
+export const del = (url: string, options: ExtendedRequestInit = {}) =>
   request(url, {
     ...options,
     method: 'DELETE'
