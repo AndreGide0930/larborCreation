@@ -7,6 +7,7 @@ import Pomodoro from '../views/Pomodoro.vue'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
 import Profile from '../views/Profile.vue'
+import Analysis from '../views/Analysis.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -39,6 +40,12 @@ const router = createRouter({
       path: '/profile',
       name: 'profile',
       component: Profile,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/analysis',
+      name: 'analysis',
+      component: Analysis,
       meta: { requiresAuth: true }
     },
     {

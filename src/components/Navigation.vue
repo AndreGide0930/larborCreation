@@ -16,6 +16,7 @@ const navItems = [
   { path: '/tasks', icon: '✅', title: '任务' },
   { path: '/schedule', icon: '📅', title: '日程' },
   { path: '/pomodoro', icon: '⏰', title: '专注' },
+  { path: '/analysis', icon: '📊', title: '分析' },
   { path: '/profile', icon: '👤', title: '我的' }
 ]
 </script>
