@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { Line } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js'
 import { request } from '../utils/request'
+import LearningChart from '../components/LearningChart.vue'
 
 // Register ChartJS components
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
@@ -25,6 +26,9 @@ const selectedTimedoro = ref<number | null>(null)
 const analysisResult = ref<number | null>(null)
 const loading = ref(false)
 const error = ref('')
+
+// Get user info from localStorage
+const userInfo = ref(JSON.parse(localStorage.getItem('userInfo') || '{}'))
 
 // Chart data
 const chartData = ref({
@@ -272,15 +276,7 @@ onMounted(() => {
       </div>
 
       <!-- 趋势图表 -->
-      <div class="neumorphic p-6 rounded-2xl">
-        <h2 class="text-2xl font-bold mb-6">学习趋势</h2>
-        <div class="h-[400px]">
-          <Line
-            :data="chartData"
-            :options="chartOptions"
-          />
-        </div>
-      </div>
+      <LearningChart :pk-user-info="String(userInfo.pkUserInfo)" />
     </div>
   </div>
 </template>
