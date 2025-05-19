@@ -77,13 +77,18 @@ const loading = ref(false)
 const error = ref('')
 
 const fetchData = async () => {
+  if (!props.pkUserInfo) {
+    error.value = '用户ID不能为空'
+    return
+  }
+
   try {
     loading.value = true
     error.value = ''
     
     const data = await request('/api/effectiveKanban', {
       params: {
-        pkUserInfo: props.pkUserInfo
+        pkUserInfo: Number(props.pkUserInfo) // Convert string to number
       }
     })
 
@@ -114,11 +119,15 @@ const fetchData = async () => {
 
 // Watch for pkUserInfo changes
 watch(() => props.pkUserInfo, () => {
-  fetchData()
+  if (props.pkUserInfo) {
+    fetchData()
+  }
 })
 
 onMounted(() => {
-  fetchData()
+  if (props.pkUserInfo) {
+    fetchData()
+  }
 })
 </script>
 
