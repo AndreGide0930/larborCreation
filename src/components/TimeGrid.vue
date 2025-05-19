@@ -50,10 +50,19 @@ const timeBlocks = computed(() => {
       const timedoro = props.timedoroes?.find(t => 
         dayjs(t.timeSlice).format('HH:mm') === timeStr
       )
+
+      // Calculate stats for this timedoro
+      let stats = { sumDone: 0, sumTodo: 0 }
+      if (timedoro) {
+        stats = {
+          sumDone: timedoro.creations.filter(task => task.cType === 'DONE').length,
+          sumTodo: timedoro.creations.filter(task => task.cType === 'TODO').length
+        }
+      }
       
       blocks.push({
         time: timeStr,
-        timedoro
+        timedoro: timedoro ? { ...timedoro, ...stats } : null
       })
     }
   }
