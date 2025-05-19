@@ -81,17 +81,39 @@ export default {
     }
   },
   schedule: {
-    title: '日程',
+    title: '日程安排',
     subtitle: '高效规划你的学习时间',
     today: '今天',
     createPlan: '创建计划',
     editTimeBlock: '编辑时间块',
     addTask: '添加任务',
     timeBlock: {
+      time: '时间段',
       start: '开始时间',
       end: '结束时间',
-      tasks: '任务',
-      stats: '统计'
+      tasks: '关联任务',
+      stats: '任务统计',
+      addTasks: '添加任务',
+      removeTasks: '移除任务',
+      markDone: '标记完成',
+      noTasks: '暂无任务',
+      createBlock: '创建时间块'
+    },
+    reminder: {
+      selectTime: '选择提醒时间',
+      timeRequired: '请选择提醒时间',
+      scheduleSuccess: '提醒设置成功',
+      scheduleFailed: '提醒设置失败',
+      scheduling: '正在设置...',
+      schedule: '设置提醒'
+    },
+    messages: {
+      createSuccess: '创建时间块成功',
+      createFailed: '创建时间块失败',
+      updateSuccess: '更新时间块成功',
+      updateFailed: '更新时间块失败',
+      deleteSuccess: '删除时间块成功',
+      deleteFailed: '删除时间块失败'
     }
   },
   pomodoro: {

@@ -4,52 +4,68 @@ import { onMounted, watch, ref } from 'vue'
 import { request, multipartPost } from '../utils/request'
 
 const timerStore = useTimerStore()
-const selectedFile = ref<File | null>(null)
-const uploadLoading = ref(false)
-const uploadError = ref('')
 
-const handleFileSelect = (event: Event) => {
+// 为每个任务维护独立的状态
+const taskStates = ref(new Map())
+
+// 初始化任务状态
+const initTaskState = (taskId: number | string) => {
+  const taskIdStr = String(taskId)
+  if (!taskStates.value.has(taskIdStr)) {
+    taskStates.value.set(taskIdStr, {
+      selectedFile: null,
+      uploadLoading: false,
+      uploadError: ''
+    })
+  }
+  return taskStates.value.get(taskIdStr)
+}
+
+const handleFileSelect = (event: Event, taskId: number | string) => {
+  const state = initTaskState(taskId)
   const file = (event.target as HTMLInputElement).files?.[0]
   if (!file) return
 
   // 添加类型校验
   const validTypes = ['image/jpeg', 'image/png', 'application/pdf', 'video/mp4', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
   if (!validTypes.includes(file.type)) {
-    uploadError.value = '仅支持JPEG/PNG/PDF/MP4/DOCX/XLSX格式'
+    state.uploadError = '仅支持JPEG/PNG/PDF/MP4/DOCX/XLSX格式'
     return
   }
 
   // 检查文件大小（100MB限制）
   if (file.size > 100 * 1024 * 1024) {
-    uploadError.value = '文件大小不能超过100MB'
+    state.uploadError = '文件大小不能超过100MB'
     return
   }
 
-  selectedFile.value = file
-  uploadError.value = ''
+  state.selectedFile = file
+  state.uploadError = ''
 }
 
 const uploadWork = async (task: any) => {
-  if (!selectedFile.value) {
-    uploadError.value = '请选择要上传的文件'
+  const state = initTaskState(task.id)
+  
+  if (!state.selectedFile) {
+    state.uploadError = '请选择要上传的文件'
     return
   }
 
-  uploadLoading.value = true
-  uploadError.value = ''
+  state.uploadLoading = true
+  state.uploadError = ''
 
   try {
     const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
     const formData = new FormData()
-    formData.append('file', selectedFile.value)
+    formData.append('file', state.selectedFile)
     
     // 创建 input 对象
     const inputData = {
-      cName: selectedFile.value.name,
+      cName: state.selectedFile.name,
       fkUserInfo: {
         pkUserInfo: Number(userInfo.pkUserInfo)
       },
-      cWeight: Number((selectedFile.value.size / (1024 * 1024)).toFixed(2)),
+      cWeight: Number((state.selectedFile.size / (1024 * 1024)).toFixed(2)),
       cPriority: task.priority || 3,
       cSynopsis: task.notes || ''
     }
@@ -57,8 +73,8 @@ const uploadWork = async (task: any) => {
     formData.append('input', JSON.stringify(inputData))
 
     await multipartPost('/api/worksUpload', formData)
-    selectedFile.value = null;
-    uploadError.value = ''
+    state.selectedFile = null
+    state.uploadError = ''
     
     // 重置文件输入框
     const fileInput = document.getElementById(`file-input-${task.id}`) as HTMLInputElement
@@ -67,9 +83,9 @@ const uploadWork = async (task: any) => {
     }
   } catch (err) {
     console.error('Upload error:', err)
-    uploadError.value = err instanceof Error ? err.message : '上传失败'
+    state.uploadError = err instanceof Error ? err.message : '上传失败'
   } finally {
-    uploadLoading.value = false
+    state.uploadLoading = false
   }
 }
 
@@ -81,9 +97,15 @@ onMounted(() => {
   console.log('TaskPanel mounted, active tasks:', timerStore.activeTasks)
 })
 
+// 清理已完成任务的状态
 watch(() => timerStore.activeTasks, (newTasks) => {
-  console.log('Active tasks changed:', newTasks)
-}, { immediate: true })
+  const currentTaskIds = new Set(newTasks.map(task => task.id))
+  for (const taskId of taskStates.value.keys()) {
+    if (!currentTaskIds.has(taskId)) {
+      taskStates.value.delete(taskId)
+    }
+  }
+}, { deep: true })
 </script>
 
 <template>
@@ -146,21 +168,24 @@ watch(() => timerStore.activeTasks, (newTasks) => {
             <input 
               :id="'file-input-' + task.id"
               type="file"
-              @change="handleFileSelect"
+              @change="(e) => handleFileSelect(e, task.id)"
               class="glass flex-1 p-2 rounded-lg text-sm"
               accept=".jpg,.jpeg,.png,.pdf,.mp4,.docx,.xlsx"
             >
             <button 
-              @click="uploadWork(task)"
-              :disabled="uploadLoading || !selectedFile"
+              @click="() => uploadWork(task)"
+              :disabled="!taskStates.get(task.id)?.selectedFile || taskStates.get(task.id)?.uploadLoading"
               class="glass px-4 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
             >
-              {{ uploadLoading ? '上传中...' : '上传作品' }}
+              {{ taskStates.get(task.id)?.uploadLoading ? '上传中...' : '上传作品' }}
             </button>
           </div>
-          <p v-if="uploadError" class="text-red-500 text-sm">{{ uploadError }}</p>
-          <p v-if="selectedFile" class="text-sm text-brand-blue/60">
-            已选择: {{ selectedFile.name }} ({{ (selectedFile.size / (1024 * 1024)).toFixed(2) }}MB)
+          <p v-if="taskStates.get(task.id)?.uploadError" class="text-red-500 text-sm">
+            {{ taskStates.get(task.id)?.uploadError }}
+          </p>
+          <p v-if="taskStates.get(task.id)?.selectedFile" class="text-sm text-brand-blue/60">
+            已选择: {{ taskStates.get(task.id)?.selectedFile.name }} 
+            ({{ (taskStates.get(task.id)?.selectedFile.size / (1024 * 1024)).toFixed(2) }}MB)
           </p>
         </div>
       </div>

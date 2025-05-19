@@ -48,8 +48,7 @@ const userProfile = ref({
   phone: userInfo.value.phone || '',
   avatar: userInfo.value.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + Math.random(),
   preferences: {
-    darkMode: localStorage.getItem('darkMode') === 'true',
-    language: 'zh'
+    darkMode: localStorage.getItem('darkMode') === 'true'
   }
 })
 
@@ -202,12 +201,6 @@ watch(() => userProfile.value.preferences.darkMode, (newValue) => {
   localStorage.setItem('darkMode', String(newValue))
 }, { immediate: true })
 
-// 监听语言变化
-watch(() => userProfile.value.preferences.language, (newValue) => {
-  locale.value = newValue
-  localStorage.setItem('language', newValue)
-}, { immediate: true })
-
 onMounted(async () => {
   if (!authStore.user) {
     router.push('/login')
@@ -228,8 +221,7 @@ onMounted(async () => {
         phone: response.phone || '',
         avatar: response.avatar || userProfile.value.avatar,
         preferences: {
-          darkMode: localStorage.getItem('darkMode') === 'true',
-          language: localStorage.getItem('language') || 'zh'
+          darkMode: localStorage.getItem('darkMode') === 'true'
         }
       }
       
@@ -346,17 +338,6 @@ const handleLogout = async () => {
                 :placeholder="t('profile.phone')"
               >
               <FormError :message="formErrors.phone" />
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium mb-2">{{ t('profile.languagePreference') }}</label>
-              <select
-                v-model="userProfile.preferences.language"
-                class="glass w-full p-3 rounded-xl"
-              >
-                <option value="zh">中文</option>
-                <option value="en">English</option>
-              </select>
             </div>
           </div>
 

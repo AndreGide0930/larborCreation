@@ -284,8 +284,9 @@ const handleSearch = async () => {
   isSearching.value = true
   
   try {
-    const data = await request('/api/search', {
+    const data = await request('/api/searchByUserId', {
       params: {
+        pkUserInfo: userInfo.value.pkUserInfo,
         keyword: searchKeyword.value.trim()
       }
     })

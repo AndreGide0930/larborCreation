@@ -2,13 +2,17 @@
 import { ref, computed, onMounted } from 'vue'
 import { useTaskStore } from '../stores/tasks'
 import { useTimerStore } from '../stores/timer'
+import { useI18n } from 'vue-i18n'
 import TimeGrid from '../components/TimeGrid.vue'
+import ScheduleReminder from '../components/ScheduleReminder.vue'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import { request } from '../utils/request'
 
 // 启用 UTC 插件
 dayjs.extend(utc)
+
+const { t } = useI18n()
 
 interface Plan {
   pkPlan: number
@@ -56,6 +60,9 @@ const selectedTasks = ref<number[]>([])
 const showAddTaskModal = ref(false)
 const availableTasksForEdit = ref<Task[]>([])
 const selectedTasksForEdit = ref<number[]>([])
+
+// 添加用户信息
+const userInfo = ref(JSON.parse(localStorage.getItem('userInfo') || '{}'))
 
 const isPastDate = computed(() => {
   const today = dayjs().startOf('day')
@@ -333,9 +340,38 @@ const handleTimeBlockClick = async (time: string) => {
   }
 }
 
-const handleTimeBlockEdit = (timedoro: Timedoro) => {
-  selectedTimedoro.value = timedoro
-  showTimedoroModal.value = true
+const handleTimeBlockEdit = async (timedoro: Timedoro) => {
+  try {
+    loading.value = true
+    error.value = ''
+    
+    // 调用 /readTimedoro 接口获取最新的 timedoro 数据
+    const updatedTimedoro = await request('/api/readTimedoro', {
+      params: {
+        pkTimedoro: timedoro.pkTimedoro
+      }
+    })
+    
+    if (updatedTimedoro) {
+      // 重新计算统计数据
+      const stats = calculateStats(updatedTimedoro.creations)
+      
+      // 更新 timedoro 数据，包括最新的统计数据
+      selectedTimedoro.value = {
+        ...updatedTimedoro,
+        sumDone: stats.sumDone,
+        sumTodo: stats.sumTodo
+      }
+      
+      showTimedoroModal.value = true
+    } else {
+      throw new Error('获取时间块数据失败')
+    }
+  } catch (e: any) {
+    error.value = e.message || '获取时间块数据失败'
+  } finally {
+    loading.value = false
+  }
 }
 
 async function deletePlan() {
@@ -361,13 +397,15 @@ async function deletePlan() {
   }
 }
 
-// 添加一个计算属性来处理时间显示
+// 修改 formattedTimeSlot 计算属性
 const formattedTimeSlot = computed(() => {
-  if (!selectedTimeSlot.value) return { start: '--:--', end: '--:--' }
+  if (!selectedTimeSlot.value) return { start: '--:--', end: '--:--', formatted: '--:-- - --:--' }
   const time = dayjs.utc(selectedTimeSlot.value).local()
+  const endTime = time.add(30, 'minutes')
   return {
     start: time.format('HH:mm'),
-    end: time.add(30, 'minutes').format('HH:mm')
+    end: endTime.format('HH:mm'),
+    formatted: `${time.format('HH:mm')} - ${endTime.format('HH:mm')}`
   }
 })
 
@@ -498,13 +536,106 @@ const startFocus = () => {
   showTimedoroModal.value = false
 }
 
+// 修改 updateTaskStatus 函数，确保在更新任务状态后重新计算统计
+const updateTaskStatus = async (task: Task, timedoro: Timedoro) => {
+  try {
+    loading.value = true
+    error.value = ''
+
+    // 获取最新的任务信息
+    const updatedTask = await request('/api/readOneWork', {
+      params: {
+        pkCreation: task.pkCreation
+      }
+    })
+
+    // 更新本地 timedoro 中的任务状态
+    const taskIndex = timedoro.creations.findIndex(t => t.pkCreation === task.pkCreation)
+    if (taskIndex !== -1) {
+      timedoro.creations[taskIndex] = updatedTask
+    }
+
+    // 重新计算统计数据
+    const stats = calculateStats(timedoro.creations)
+    
+    // 更新 timedoro 的统计数据
+    const updatedTimedoro = {
+      ...timedoro,
+      sumDone: stats.sumDone,
+      sumTodo: stats.sumTodo
+    }
+
+    // 调用 API 更新 timedoro
+    await request('/api/updateTimedoro', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updatedTimedoro)
+    })
+
+    // 更新本地状态
+    if (selectedTimedoro.value && selectedTimedoro.value.pkTimedoro === timedoro.pkTimedoro) {
+      selectedTimedoro.value = updatedTimedoro
+    }
+
+    // 重新加载计划数据以更新视图
+    await loadPlanForDate(selectedDate.value)
+  } catch (e: any) {
+    error.value = e.message || '更新任务状态失败'
+  } finally {
+    loading.value = false
+  }
+}
+
 onMounted(async () => {
   await loadPlanForDate(selectedDate.value)
 })
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-8">
+  <div class="container mx-auto p-4 space-y-6">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <h1 class="text-2xl font-bold">{{ t('schedule.title') }}</h1>
+        <div class="relative">
+          <button
+            @click="showDatePicker = !showDatePicker"
+            class="glass px-4 py-2 rounded-lg flex items-center gap-2"
+          >
+            <span>📅</span>
+            {{ dayjs(selectedDate).format('YYYY年MM月DD日') }}
+          </button>
+          
+          <input
+            v-if="showDatePicker"
+            type="date"
+            v-model="selectedDate"
+            class="absolute top-full left-0 mt-2 glass px-4 py-2 rounded-lg"
+            @change="showDatePicker = false"
+          >
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <ScheduleReminder
+          v-if="currentPlan"
+          :pk-user-info="userInfo.pkUserInfo"
+          :plan-date="selectedDate"
+        />
+        
+        <button
+          v-if="!currentPlan && !isPastDate"
+          @click="createPlan"
+          :disabled="loading"
+          class="glass px-4 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors flex items-center gap-2"
+        >
+          <span>📝</span>
+          {{ t('schedule.createPlan') }}
+        </button>
+      </div>
+    </div>
+
     <div class="flex flex-col gap-8">
       <div class="text-center">
         <h1 class="text-4xl mb-2 bg-gradient-to-r from-brand-orange to-brand-mint bg-clip-text text-transparent">
@@ -525,22 +656,13 @@ onMounted(async () => {
             <span class="text-xl">←</span>
           </button>
           
-          <div class="relative">
-            <button 
-              @click="showDatePicker = !showDatePicker"
-              class="glass px-6 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors min-w-[200px] text-lg font-semibold"
-            >
-              {{ dayjs(selectedDate).format('YYYY年MM月DD日') }}
-            </button>
-            
-            <input 
-              v-if="showDatePicker"
-              type="date"
-              :value="selectedDate"
-              @change="(e) => handleDateSelect((e.target as HTMLInputElement).value)"
-              class="absolute top-full left-0 mt-2 glass p-2 rounded-lg w-full z-10"
-            >
-          </div>
+          <button 
+            @click="goToToday"
+            class="glass px-4 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
+            :class="{ 'bg-brand-orange/10': dayjs(selectedDate).isSame(dayjs(), 'day') }"
+          >
+            今天
+          </button>
 
           <button 
             @click="handleDateSelect(dayjs(selectedDate).add(1, 'day').format('YYYY-MM-DD'))"
@@ -548,14 +670,6 @@ onMounted(async () => {
             title="后一天"
           >
             <span class="text-xl">→</span>
-          </button>
-
-          <button 
-            @click="goToToday"
-            class="glass px-4 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
-            :class="{ 'bg-brand-orange/10': dayjs(selectedDate).isSame(dayjs(), 'day') }"
-          >
-            今天
           </button>
         </div>
 
@@ -602,12 +716,18 @@ onMounted(async () => {
       @click.self="showTaskModal = false"
     >
       <div class="neumorphic p-8 rounded-2xl w-full max-w-md">
-        <h2 class="text-2xl font-bold mb-6">选择任务</h2>
+        <h2 class="text-2xl font-bold mb-6">{{ t('schedule.timeBlock.createBlock') }}</h2>
         
         <div class="mb-4">
-          <div class="glass p-3 rounded-xl text-center mb-4">
-            {{ formattedTimeSlot.start }} - 
-            {{ formattedTimeSlot.end }}
+          <div class="glass p-3 rounded-xl mb-4">
+            <h3 class="font-semibold mb-2">{{ t('schedule.timeBlock.time') }}</h3>
+            <div class="text-center text-lg">
+              {{ formattedTimeSlot.formatted }}
+            </div>
+          </div>
+
+          <div v-if="availableTasks.length === 0" class="text-center text-gray-500 my-4">
+            {{ t('schedule.timeBlock.noTasks') }}
           </div>
 
           <div class="max-h-[400px] overflow-y-auto space-y-2">
@@ -623,7 +743,7 @@ onMounted(async () => {
                 class="w-5 h-5 rounded-lg accent-brand-orange"
               >
               <div class="flex-1">
-                <div class="font-medium">{{ task.cName || '未命名任务' }}</div>
+                <div class="font-medium">{{ task.cName || t('tasks.untitled') }}</div>
                 <div v-if="task.cSynopsis" class="text-sm opacity-75">{{ task.cSynopsis }}</div>
                 <div class="flex gap-2 mt-1">
                   <span class="text-xs px-2 py-1 rounded-full bg-brand-orange/10 text-brand-orange">
@@ -641,14 +761,14 @@ onMounted(async () => {
             :disabled="loading || selectedTasks.length === 0"
             class="flex-1 bg-gradient-to-r from-brand-orange to-brand-mint text-white py-3 rounded-xl font-medium transition-all hover:opacity-90 disabled:opacity-50"
           >
-            {{ loading ? '创建中...' : '创建时间块' }}
+            {{ loading ? t('common.loading') : t('schedule.timeBlock.createBlock') }}
           </button>
           <button
             type="button"
             @click="showTaskModal = false"
             class="glass px-6 py-3 rounded-xl hover:bg-brand-orange/10 transition-colors"
           >
-            取消
+            {{ t('common.cancel') }}
           </button>
         </div>
       </div>
@@ -661,28 +781,32 @@ onMounted(async () => {
       @click.self="showTimedoroModal = false"
     >
       <div class="neumorphic p-8 rounded-2xl w-full max-w-md">
-        <h2 class="text-2xl font-bold mb-6">编辑时间块</h2>
+        <h2 class="text-2xl font-bold mb-6">{{ t('schedule.editTimeBlock') }}</h2>
         
         <div class="space-y-6">
           <div class="glass p-4 rounded-xl">
-            <h3 class="font-semibold mb-2">时间</h3>
+            <h3 class="font-semibold mb-2">{{ t('schedule.timeBlock.time') }}</h3>
             <div class="text-center text-xl">
-              {{ formattedTimeSlot.start }} - 
-              {{ formattedTimeSlot.end }}
+              {{ formattedTimeSlot.formatted }}
             </div>
           </div>
 
           <div class="glass p-4 rounded-xl">
             <div class="flex justify-between items-center mb-2">
-              <h3 class="font-semibold">关联任务</h3>
+              <h3 class="font-semibold">{{ t('schedule.timeBlock.tasks') }}</h3>
               <button
                 @click="handleAddTask"
                 class="glass px-3 py-1 rounded-lg text-sm hover:bg-brand-orange/10 transition-colors"
               >
-                新增任务
+                {{ t('schedule.timeBlock.addTasks') }}
               </button>
             </div>
-            <div class="space-y-2">
+            
+            <div v-if="selectedTimedoro.creations.length === 0" class="text-center text-gray-500 my-4">
+              {{ t('schedule.timeBlock.noTasks') }}
+            </div>
+
+            <div v-else class="space-y-2">
               <div 
                 v-for="task in selectedTimedoro.creations" 
                 :key="task.pkCreation"
@@ -691,31 +815,41 @@ onMounted(async () => {
                 <div class="flex items-center gap-2">
                   <span 
                     class="w-2 h-2 rounded-full"
-                    :class="task.cType === 'TODO' ? 'bg-green-500' : 'bg-brand-orange'"
+                    :class="task.cType === 'DONE' ? 'bg-green-500' : 'bg-brand-orange'"
                   ></span>
-                  <span>{{ task.cName || '未命名任务' }}</span>
+                  <span>{{ task.cName || t('tasks.untitled') }}</span>
                 </div>
-                <button
-                  @click="removeTaskFromTimedoro(task.pkCreation, selectedTimedoro.pkTimedoro)"
-                  class="text-red-500 hover:bg-red-500/10 p-1 rounded"
-                  title="移除任务"
-                >
-                  ×
-                </button>
+                <div class="flex items-center gap-2">
+                  <button
+                    v-if="task.cType === 'TODO'"
+                    @click="updateTaskStatus(task, selectedTimedoro)"
+                    class="text-green-500 hover:bg-green-500/10 p-1 rounded"
+                    :title="t('schedule.timeBlock.markDone')"
+                  >
+                    ✓
+                  </button>
+                  <button
+                    @click="removeTaskFromTimedoro(task.pkCreation, selectedTimedoro.pkTimedoro)"
+                    class="text-red-500 hover:bg-red-500/10 p-1 rounded"
+                    :title="t('schedule.timeBlock.removeTasks')"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
             </div>
           </div>
 
           <div class="glass p-4 rounded-xl">
-            <h3 class="font-semibold mb-2">统计</h3>
+            <h3 class="font-semibold mb-2">{{ t('schedule.timeBlock.stats') }}</h3>
             <div class="flex justify-around text-center">
               <div>
                 <div class="text-2xl font-bold text-green-500">{{ selectedTimedoro.sumDone }}</div>
-                <div class="text-sm opacity-75">已完成</div>
+                <div class="text-sm opacity-75">{{ t('tasks.status.done') }}</div>
               </div>
               <div>
                 <div class="text-2xl font-bold text-brand-orange">{{ selectedTimedoro.sumTodo }}</div>
-                <div class="text-sm opacity-75">待完成</div>
+                <div class="text-sm opacity-75">{{ t('tasks.status.todo') }}</div>
               </div>
             </div>
           </div>

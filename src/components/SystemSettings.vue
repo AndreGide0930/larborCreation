@@ -23,16 +23,5 @@ const { t } = useI18n()
         </div>
       </div>
     </label>
-
-    <div class="p-4 glass rounded-xl">
-      <label class="block text-sm font-medium mb-2">{{ t('profile.language') }}</label>
-      <select
-        v-model="settingsStore.language"
-        class="glass w-full p-3 rounded-xl"
-      >
-        <option value="zh">中文</option>
-        <option value="en">English</option>
-      </select>
-    </div>
   </div>
 </template>
