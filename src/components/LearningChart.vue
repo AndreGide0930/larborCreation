@@ -87,8 +87,9 @@ const fetchData = async () => {
     error.value = ''
     
     const data = await request('/api/effectiveKanban', {
+      method: 'GET',
       params: {
-        pkUserInfo: Number(props.pkUserInfo) // Convert string to number
+        pkUserInfo: props.pkUserInfo // 直接传递 pkUserInfo，不需要转换为数字
       }
     })
 

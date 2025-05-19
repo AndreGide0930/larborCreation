@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { request, multipartPost } from '../utils/request'
 import { useAuthStore } from '../stores/auth'
-
+import { useI18n } from 'vue-i18n'
+import { useUserStore } from '../stores/user'
+import { debounce } from 'lodash-es'
 
 interface Work {
   pkCreation?: number
@@ -35,6 +37,7 @@ const error = ref('')
 const router = useRouter()
 const userInfo = ref(JSON.parse(localStorage.getItem('userInfo') || '{}'))
 const authStore = useAuthStore()
+const i18n = useI18n()
 
 const priorityLabels = {
   1: '非常低',
@@ -161,40 +164,88 @@ const uploadWork = async () => {
 //   }
 // }
 
-// 添加新的预览状态
+// 预览状态
 const previewUrl = ref('')
 const showPreview = ref(false)
 const previewPosition = ref({ x: 0, y: 0 })
+const currentPreviewWork = ref<Work | null>(null)
+const previewLoading = ref(false)
+let previewTimer: number | null = null
+const isHovering = ref(false)
 
 const handleWorkHover = (work: Work, event: MouseEvent) => {
-  if (work.pkCreation) {
-    previewUrl.value = `/api/preview?pkCreation=${work.pkCreation}`
-    showPreview.value = true
-    // 计算预览框的位置，确保不会超出视口
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
-    const viewportWidth = window.innerWidth
-    const viewportHeight = window.innerHeight
-    
-    // 默认显示在鼠标右侧
-    let x = rect.right + 10
-    let y = rect.top
-    
-    // 如果右侧空间不足，则显示在左侧
-    if (x + 400 > viewportWidth) {
-      x = rect.left - 410
-    }
-    
-    // 如果底部空间不足，则向上偏移
-    if (y + 300 > viewportHeight) {
-      y = viewportHeight - 310
-    }
-    
-    previewPosition.value = { x, y }
+  if (!work.pkCreation) return
+  
+  // 如果是同一个作品，不做任何处理
+  if (currentPreviewWork.value?.pkCreation === work.pkCreation) {
+    return
   }
+
+  // 清除之前的定时器
+  if (previewTimer) {
+    clearTimeout(previewTimer)
+  }
+
+  // 更新位置（只在首次悬停时）
+  updatePreviewPosition(event)
+
+  // 更新状态
+  currentPreviewWork.value = work
+  showPreview.value = true
+  isHovering.value = true
+  previewLoading.value = true
+  previewUrl.value = '' // 清空之前的预览URL
+
+  // 设置新的预览URL并加载
+  const newPreviewUrl = `/api/preview?pkCreation=${work.pkCreation}`
+  previewTimer = window.setTimeout(() => {
+    if (isHovering.value && currentPreviewWork.value?.pkCreation === work.pkCreation) {
+      previewUrl.value = newPreviewUrl
+      // 给iframe一点时间加载
+      setTimeout(() => {
+        if (isHovering.value && currentPreviewWork.value?.pkCreation === work.pkCreation) {
+          previewLoading.value = false
+        }
+      }, 100)
+    }
+  }, 300) // 减少延迟时间到300ms
+}
+
+const updatePreviewPosition = (event: MouseEvent) => {
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  const previewWidth = 400
+  const previewHeight = 300
+  
+  const x = rect.left + (rect.width - previewWidth) / 2
+  const y = rect.top + (rect.height - previewHeight) / 2
+  
+  const viewportWidth = window.innerWidth
+  const viewportHeight = window.innerHeight
+  
+  const finalX = Math.max(10, Math.min(x, viewportWidth - previewWidth - 10))
+  const finalY = Math.max(10, Math.min(y, viewportHeight - previewHeight - 10))
+  
+  previewPosition.value = { x: finalX, y: finalY }
 }
 
 const handleWorkLeave = () => {
+  isHovering.value = false
+  if (previewTimer) {
+    clearTimeout(previewTimer)
+    previewTimer = null
+  }
+  // 立即隐藏预览框
   showPreview.value = false
+  currentPreviewWork.value = null
+  previewUrl.value = ''
+  previewLoading.value = false
+}
+
+// 点击预览功能
+const handleWorkClick = (work: Work) => {
+  if (work.pkCreation) {
+    window.open(`/api/preview?pkCreation=${work.pkCreation}`, '_blank')
+  }
 }
 
 const handleDelete = async (work: Work) => {
@@ -376,6 +427,7 @@ onMounted(() => {
         class="neumorphic rounded-lg overflow-hidden hover:scale-105 transition-transform cursor-pointer relative group"
         @mouseenter="handleWorkHover(work, $event)"
         @mouseleave="handleWorkLeave"
+        @click="handleWorkClick(work)"
       >
         <div class="p-4">
           <!-- 标题和优先级 -->
@@ -442,21 +494,43 @@ onMounted(() => {
 
     <!-- 预览框 -->
     <div 
-      v-if="showPreview"
-      class="fixed z-50 bg-white rounded-lg shadow-xl overflow-hidden"
+      v-if="showPreview && currentPreviewWork"
+      class="fixed z-50 bg-white rounded-lg shadow-xl overflow-hidden cursor-pointer transform hover:scale-105 transition-transform"
       :style="{
         left: `${previewPosition.x}px`,
         top: `${previewPosition.y}px`,
         width: '400px',
         height: '300px'
       }"
+      @click="handleWorkClick(currentPreviewWork)"
+      @mouseenter="isHovering = true"
+      @mouseleave="handleWorkLeave"
     >
-      <iframe 
-        :src="previewUrl" 
-        class="w-full h-full border-0"
-        @mouseenter="showPreview = true"
-        @mouseleave="showPreview = false"
-      ></iframe>
+      <div class="relative w-full h-full">
+        <!-- 加载状态 -->
+        <div v-if="previewLoading || !previewUrl" class="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <div class="text-center p-4">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange mx-auto"></div>
+            <div class="text-gray-600 mt-2">加载预览中...</div>
+          </div>
+        </div>
+        
+        <!-- 预览内容 -->
+        <iframe 
+          v-if="previewUrl"
+          :src="previewUrl" 
+          class="w-full h-full border-0"
+          @load="previewLoading = false"
+        ></iframe>
+        
+        <!-- 悬停提示 -->
+        <div class="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/10 transition-colors pointer-events-none">
+          <div class="text-white opacity-0 group-hover:opacity-100 transition-opacity text-center">
+            <i class="fas fa-external-link-alt text-2xl"></i>
+            <div class="text-sm mt-1">点击在新窗口打开</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div 
