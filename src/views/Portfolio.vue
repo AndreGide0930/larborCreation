@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router'
 import { request, multipartPost } from '../utils/request'
 import { useAuthStore } from '../stores/auth'
 import { useI18n } from 'vue-i18n'
-import { useUserStore } from '../stores/user'
 import { debounce } from 'lodash-es'
 
 interface Work {
@@ -21,6 +20,9 @@ interface Work {
 const works = ref<Work[]>([])
 const showUploadForm = ref(false)
 const showDeleteConfirm = ref(false)
+const workToDelete = ref<Work | null>(null)
+const showEditForm = ref(false)
+const workToEdit = ref<Work | null>(null)
 const searchKeyword = ref('')
 const searchResults = ref<Work[]>([])
 const isSearching = ref(false)
@@ -193,14 +195,14 @@ const handleFileSelect = (event: Event) => {
   const file = (event.target as HTMLInputElement).files?.[0]
   if (!file) return
 
-  // 添加类型校验
+  // Add type validation
   const validTypes = ['image/jpeg', 'image/png', 'application/pdf', 'video/mp4', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
   if (!validTypes.includes(file.type)) {
     error.value = '仅支持JPEG/PNG/PDF/MP4/DOCX/XLSX格式'
     return
   }
 
-  // 检查文件大小（100MB限制）
+  // Check file size (100MB limit)
   if (file.size > 100 * 1024 * 1024) {
     error.value = '文件大小不能超过100MB'
     return
@@ -328,6 +330,37 @@ const handleDownload = async (work: Work) => {
   }
 }
 
+const handleEdit = (work: Work) => {
+  workToEdit.value = { ...work }
+  showEditForm.value = true
+}
+
+const updateWork = async () => {
+  if (!workToEdit.value?.pkCreation) return
+
+  try {
+    loading.value = true
+    error.value = ''
+
+    await request('/api/update', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(workToEdit.value)
+    })
+
+    await fetchWorks()
+    showEditForm.value = false
+    workToEdit.value = null
+  } catch (err) {
+    console.error('Update error:', err)
+    error.value = err instanceof Error ? err.message : '更新失败'
+  } finally {
+    loading.value = false
+  }
+}
+
 const handleSearch = async () => {
   if (!searchKeyword.value.trim()) {
     await fetchWorks()
@@ -380,14 +413,6 @@ onMounted(() => {
       <div class="text-sm text-brand-blue/60 dark:text-white/60">
         {{ userInfo.username || userInfo.email }}
       </div>
-    </div>
-
-    <div v-if="loading" class="text-center py-4">
-      加载中...
-    </div>
-    
-    <div v-if="error" class="text-red-500 text-center py-4">
-      {{ error }}
     </div>
 
     <button 
@@ -464,16 +489,24 @@ onMounted(() => {
             <button 
               v-if="work.pkCreation && work.cUrl"
               @click.stop="handleDownload(work)"
-              class="bg-blue-500 hover:bg-blue-600 text-white opacity-0 group-hover:opacity-100 transition-all p-2 rounded-full shadow-md hover:shadow-lg"
+              class="glass px-3 py-1 rounded-lg text-sm text-blue-500 hover:bg-blue-500/10 transition-colors"
+              title="下载作品"
             >
-              ↓
+              📥
             </button>
             <button 
-              v-if="work.pkCreation"
-              @click.stop="handleDelete(work)"
-              class="bg-red-500 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-all p-2 rounded-full shadow-md hover:shadow-lg"
+              @click.stop="handleEdit(work)"
+              class="glass px-3 py-1 rounded-lg text-sm text-orange-500 hover:bg-orange-500/10 transition-colors"
+              title="编辑作品"
             >
-              ×
+              ✏️
+            </button>
+            <button 
+              @click.stop="handleDelete(work)"
+              class="glass px-3 py-1 rounded-lg text-sm text-red-500 hover:bg-red-500/10 transition-colors"
+              title="删除作品"
+            >
+              🗑️
             </button>
           </div>
         </div>
@@ -606,6 +639,82 @@ onMounted(() => {
           </button>
         </div>
       </form>
+    </div>
+
+    <!-- Edit Form Modal -->
+    <div 
+      v-if="showEditForm && workToEdit"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm"
+      @click.self="showEditForm = false"
+    >
+      <div class="neumorphic p-6 rounded-lg w-full max-w-md">
+        <h2 class="text-2xl mb-6">编辑作品</h2>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block mb-1">作品名称</label>
+            <input 
+              v-model="workToEdit.cName"
+              type="text"
+              required
+              class="glass w-full p-2 rounded-lg"
+            >
+          </div>
+
+          <div>
+            <label class="block mb-1">优先级</label>
+            <div class="flex gap-2">
+              <label 
+                v-for="n in 5" 
+                :key="n"
+                class="flex-1 cursor-pointer"
+              >
+                <input 
+                  type="radio" 
+                  :value="n"
+                  v-model="workToEdit.cPriority"
+                  class="sr-only"
+                >
+                <div 
+                  class="text-center p-2 rounded-lg transition-all"
+                  :class="[
+                    workToEdit.cPriority === n 
+                      ? priorityColors[n as keyof typeof priorityColors] 
+                      : 'glass hover:bg-brand-orange/10'
+                  ]"
+                >
+                  {{ n }}
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label class="block mb-1">描述</label>
+            <textarea 
+              v-model="workToEdit.cSynopsis"
+              rows="3"
+              class="glass w-full p-2 rounded-lg"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="flex gap-4 mt-6">
+          <button 
+            @click="updateWork"
+            :disabled="loading"
+            class="glass px-6 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors flex-1"
+          >
+            {{ loading ? '更新中...' : '更新作品' }}
+          </button>
+          <button 
+            @click="showEditForm = false"
+            class="glass px-6 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
+          >
+            取消
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Delete Confirmation Modal -->
