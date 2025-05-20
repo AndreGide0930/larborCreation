@@ -22,6 +22,18 @@ onMounted(() => {
     colorMode.value = 'dark'
   }
 })
+
+const handleBeforeLeave = () => {
+  if (document.body) {
+    document.body.style.overflow = 'hidden'
+  }
+}
+
+const handleAfterEnter = () => {
+  if (document.body) {
+    document.body.style.overflow = ''
+  }
+}
 </script>
 
 <template>
@@ -31,8 +43,8 @@ onMounted(() => {
       <transition 
         name="fade" 
         mode="out-in"
-        @before-leave="() => document.body.style.overflow = 'hidden'"
-        @after-enter="() => document.body.style.overflow = ''"
+        @before-leave="handleBeforeLeave"
+        @after-enter="handleAfterEnter"
       >
         <component :is="Component" :key="route.fullPath" />
       </transition>
