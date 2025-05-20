@@ -3,7 +3,7 @@ import { ref, onMounted, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { request, putJson, multipartPost } from '../utils/request'
+import { request, put, multipartPost } from '../utils/request'
 import Toast from '../components/Toast.vue'
 import Modal from '../components/Modal.vue'
 import FormError from '../components/FormError.vue'
@@ -72,14 +72,44 @@ const showModal = (title: string, message: string, type: 'error' | 'warning' | '
   }
 }
 
-const handleAvatarUploadSuccess = (url: string) => {
-  userProfile.value.avatar = url
-  const updatedUserInfo = {
-    ...userInfo.value,
-    avatar: url
+const handleAvatarUploadSuccess = async (url: string) => {
+  try {
+    // 先更新本地状态
+    userProfile.value.avatar = url
+    const updatedUserInfo = {
+      ...userInfo.value,
+      avatar: url
+    }
+    localStorage.setItem('userInfo', JSON.stringify(updatedUserInfo))
+    userInfo.value = updatedUserInfo
+
+    // 重新获取用户数据
+    const response = await request('/api/ReadUser', {
+      params: {
+        pkUserInfo: userInfo.value.pkUserInfo
+      }
+    })
+    
+    if (response) {
+      userProfile.value = {
+        ...userProfile.value,
+        username: response.username || '',
+        email: response.email || '',
+        phone: response.phone || '',
+        avatar: response.avatar || url
+      }
+      
+      localStorage.setItem('userInfo', JSON.stringify(response))
+      userInfo.value = response
+      showToast(t('profile.messages.avatarSuccess'), 'success')
+    }
+  } catch (error: any) {
+    showModal(
+      t('profile.uploadAvatar'),
+      error.message || t('profile.messages.avatarFailed'),
+      'error'
+    )
   }
-  localStorage.setItem('userInfo', JSON.stringify(updatedUserInfo))
-  userInfo.value = updatedUserInfo
 }
 
 // Form validation
@@ -124,7 +154,7 @@ const handleUpdateProfile = async () => {
       enabled: true
     }
 
-    const response = await putJson('/api/UpdateUser', userData)
+    const response = await put('/api/UpdateUser', userData)
 
     if (response) {
       const updatedUserInfo = {

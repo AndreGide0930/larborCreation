@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useColorMode } from '@vueuse/core'
-import { onMounted, computed, ref, watch } from 'vue'
+import { onMounted, computed, watch } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import Navigation from './components/Navigation.vue'
 import ChatWindow from './components/ChatWindow.vue'
@@ -16,12 +16,6 @@ const showNavAndChat = computed(() => {
          !route.path.includes('/register')
 })
 
-// Add key to force component re-render
-const routeKey = ref(0)
-watch(() => route.fullPath, () => {
-  routeKey.value++
-})
-
 onMounted(() => {
   // Initialize dark mode based on system preference
   if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
@@ -30,16 +24,30 @@ onMounted(() => {
 })
 
 const handleBeforeLeave = () => {
-  if (document.body) {
-    document.body.style.overflow = 'hidden'
-  }
+  // 移除之前的滚动条处理
+  // if (document.body) {
+  //   document.body.style.overflow = 'hidden'
+  // }
 }
 
 const handleAfterEnter = () => {
-  if (document.body) {
-    document.body.style.overflow = ''
-  }
+  // 移除之前的滚动条处理
+  // if (document.body) {
+  //   document.body.style.overflow = ''
+  // }
+  // 确保页面可以滚动
+  document.documentElement.style.overflow = 'auto'
+  document.body.style.overflow = 'auto'
 }
+
+// 添加路由变化监听
+watch(() => route.path, () => {
+  // 每次路由变化时重置滚动位置
+  window.scrollTo(0, 0)
+  // 确保页面可以滚动
+  document.documentElement.style.overflow = 'auto'
+  document.body.style.overflow = 'auto'
+})
 </script>
 
 <template>
@@ -52,7 +60,9 @@ const handleAfterEnter = () => {
         @before-leave="handleBeforeLeave"
         @after-enter="handleAfterEnter"
       >
-        <component :is="Component" :key="routeKey" />
+        <keep-alive>
+          <component :is="Component" :key="route.fullPath" />
+        </keep-alive>
       </transition>
     </RouterView>
     <ChatWindow v-if="showNavAndChat" />
@@ -62,11 +72,17 @@ const handleAfterEnter = () => {
 <style>
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.15s ease;
+  transition: opacity 0.2s ease;
 }
 
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* 确保页面内容可以正常滚动 */
+html, body {
+  overflow-y: auto !important;
+  height: auto !important;
 }
 </style>
