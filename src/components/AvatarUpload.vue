@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { request } from '../utils/request'
+import { multipartPut } from '../utils/request'
 
 const props = defineProps<{
   currentAvatar: string
@@ -33,18 +33,29 @@ const handleFileSelect = async (event: Event) => {
 
     const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
     
-    const formData = new FormData()
-    formData.append('file', file)
-
-    const response = await request('/api/auth/uploadAvatar', {
-      method: 'PUT',
-      params: {
-        pkUserInfo: userInfo.pkUserInfo
-      },
-      body: formData
+    // 生成唯一的文件名
+    const fileExtension = file.name.split('.').pop()
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExtension}`
+    
+    // 读取文件内容
+    const reader = new FileReader()
+    const fileContent = await new Promise<string>((resolve, reject) => {
+      reader.onload = (e) => resolve(e.target?.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
     })
+    
+    const formData = new FormData()
+    formData.append('file', file)  // 直接发送文件对象
+    formData.append('fileName', fileName)
+    formData.append('pkUserInfo', userInfo.pkUserInfo)
 
-    if (typeof response === 'string') {
+    const response = await multipartPut('/api/uploadAvatar', formData)
+
+    if (response) {
+      // 更新本地存储的用户信息
+      const updatedUserInfo = { ...userInfo, avatar: response }
+      localStorage.setItem('userInfo', JSON.stringify(updatedUserInfo))
       emit('uploadSuccess', response)
     } else {
       throw new Error('上传失败')

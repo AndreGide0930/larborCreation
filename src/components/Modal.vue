@@ -25,11 +25,10 @@ const close = () => {
 <template>
   <Transition name="modal">
     <div v-if="modalVisible" class="fixed inset-0 z-50 flex items-center justify-center">
-      <!-- Backdrop -->
-      <div class="absolute inset-0 bg-black/50" @click="close"></div>
+
       
       <!-- Modal Content -->
-      <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+      <div class="relative bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden" @click="close">
         <div class="p-6">
           <div class="flex items-center gap-3 mb-4">
             <span v-if="type === 'error'" class="text-2xl">⚠️</span>

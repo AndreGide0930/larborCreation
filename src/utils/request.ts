@@ -112,7 +112,16 @@ export const multipartPost = (url: string, formData: FormData, options: Extended
     }
   })
 }
-
+export const putJson = (url: string, data: any, options: ExtendedRequestInit = {}) =>
+  request(url, {
+    ...options,
+    method: 'PUT',
+    body: JSON.stringify(data),
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers
+    }
+  })
 export const put = (url: string, data: any, options: ExtendedRequestInit = {}) =>
   request(url, {
     ...options,
@@ -125,3 +134,32 @@ export const del = (url: string, options: ExtendedRequestInit = {}) =>
     ...options,
     method: 'DELETE'
   })
+
+export const multipartPut = async (url: string, formData: FormData, options?: ExtendedRequestInit) => {
+  const { params, ...rest } = options || {}
+  const finalUrl = url + (params ? `?${new URLSearchParams(params).toString()}` : '')
+  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+
+  const response = await fetch(finalUrl, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${userInfo.token}`
+    },
+    body: formData,
+    ...rest
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(errorText || `HTTP error! status: ${response.status}`)
+  }
+
+  const contentType = response.headers.get('content-type')
+  if (contentType && contentType.includes('application/json')) {
+    const data = await response.json()
+    return data
+  } else {
+    const text = await response.text()
+    return { body: text }
+  }
+}
