@@ -17,14 +17,14 @@ const editMode = ref(false)
 const loading = ref(false)
 const avatarLoading = ref(false)
 
-// Toast 状态
+// Toast state
 const toast = ref({
   show: false,
   message: '',
   type: 'success' as 'success' | 'error' | 'info'
 })
 
-// Modal 状态
+// Modal state
 const modal = ref({
   show: false,
   title: '',
@@ -32,14 +32,14 @@ const modal = ref({
   type: 'error' as 'error' | 'warning' | 'info'
 })
 
-// 表单验证错误
+// Form validation errors
 const formErrors = ref({
   username: '',
   email: '',
   phone: ''
 })
 
-// 从本地存储获取用户信息
+// Get user info from localStorage
 const userInfo = ref(JSON.parse(localStorage.getItem('userInfo') || '{}'))
 
 const userProfile = ref({
@@ -52,7 +52,7 @@ const userProfile = ref({
   }
 })
 
-// 显示 Toast
+// Show Toast
 const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
   toast.value = {
     show: true,
@@ -61,7 +61,7 @@ const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info')
   }
 }
 
-// 显示 Modal
+// Show Modal
 const showModal = (title: string, message: string, type: 'error' | 'warning' | 'info' = 'error') => {
   modal.value = {
     show: true,
@@ -71,18 +71,18 @@ const showModal = (title: string, message: string, type: 'error' | 'warning' | '
   }
 }
 
-// 处理头像上传
+// Handle avatar upload
 const handleAvatarUpload = async (event: Event) => {
   const file = (event.target as HTMLInputElement).files?.[0]
   if (!file) return
 
-  // 验证文件类型
+  // Validate file type
   if (!file.type.startsWith('image/')) {
     showToast(t('profile.messages.selectImage'), 'error')
     return
   }
 
-  // 验证文件大小（限制为 2MB）
+  // Validate file size (2MB limit)
   if (file.size > 2 * 1024 * 1024) {
     showToast(t('profile.messages.imageTooLarge'), 'error')
     return
@@ -91,24 +91,47 @@ const handleAvatarUpload = async (event: Event) => {
   try {
     avatarLoading.value = true
 
+    // Create a unique filename
+    const timestamp = Date.now()
+    const extension = file.name.split('.').pop()
+    const fileName = `${userInfo.value.pkUserInfo}_${timestamp}.${extension}`
+
+    // First, upload the file to get the URL
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('pkUserInfo', String(userInfo.value.pkUserInfo))
+    formData.append('fileName', fileName)
 
     const response = await request('/api/uploadAvatar', {
-      method: 'PUT',
+      method: 'POST',
       body: formData
     })
 
-    if (response && response.avatarUrl) {
-      userProfile.value.avatar = response.avatarUrl
+    if (response) {
+      // Update user profile with the new avatar URL
+      userProfile.value.avatar = response
       
       const updatedUserInfo = {
         ...userInfo.value,
-        avatar: response.avatarUrl
+        avatar: response
       }
       localStorage.setItem('userInfo', JSON.stringify(updatedUserInfo))
       userInfo.value = updatedUserInfo
+
+      // Update user info in the database
+      await request('/api/UpdateUser', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          pkUserInfo: userInfo.value.pkUserInfo,
+          username: userProfile.value.username,
+          email: userProfile.value.email,
+          phone: userProfile.value.phone,
+          avatar: response,
+          enabled: true
+        })
+      })
 
       showToast(t('profile.messages.avatarSuccess'), 'success')
     }
@@ -123,7 +146,7 @@ const handleAvatarUpload = async (event: Event) => {
   }
 }
 
-// 表单验证
+// Form validation
 const validateForm = () => {
   let isValid = true
   formErrors.value = {
@@ -191,7 +214,7 @@ const handleUpdateProfile = async () => {
   }
 }
 
-// 监听深色模式变化
+// Watch dark mode changes
 watch(() => userProfile.value.preferences.darkMode, (newValue) => {
   if (newValue) {
     document.documentElement.classList.add('dark')
@@ -272,14 +295,14 @@ const handleLogout = async () => {
               >
               <label 
                 for="avatar-upload"
-                class="glass p-2 rounded-full hover:bg-brand-orange/10 transition-colors cursor-pointer"
+                class="glass px-3 py-1 rounded-full hover:bg-brand-orange/10 transition-colors cursor-pointer"
                 :class="{ 'opacity-50 cursor-not-allowed': avatarLoading }"
               >
                 {{ avatarLoading ? t('profile.uploading') : t('profile.uploadAvatar') }}
               </label>
               <button 
                 @click="userProfile.avatar = 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + Math.random()"
-                class="glass p-2 rounded-full hover:bg-brand-orange/10 transition-colors"
+                class="glass px-3 py-1 rounded-full hover:bg-brand-orange/10 transition-colors"
                 :disabled="avatarLoading"
               >
                 🔄
