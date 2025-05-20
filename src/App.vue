@@ -17,7 +17,6 @@ const showNavAndChat = computed(() => {
 })
 
 onMounted(() => {
-  // Initialize dark mode based on system preference
   if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
     colorMode.value = 'dark'
   }
