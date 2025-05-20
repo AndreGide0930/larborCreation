@@ -33,30 +33,25 @@ const handleFileSelect = async (event: Event) => {
 
     const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
     
-    // 生成唯一的文件名
+    // Generate unique filename
     const fileExtension = file.name.split('.').pop()
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExtension}`
     
-    // 读取文件内容
-    const reader = new FileReader()
-    const fileContent = await new Promise<string>((resolve, reject) => {
-      reader.onload = (e) => resolve(e.target?.result as string)
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
-    
     const formData = new FormData()
-    formData.append('file', file)  // 直接发送文件对象
+    formData.append('file', file)
     formData.append('fileName', fileName)
     formData.append('pkUserInfo', userInfo.pkUserInfo)
 
     const response = await multipartPut('/api/uploadAvatar', formData)
 
     if (response) {
-      // 更新本地存储的用户信息
+      // Update local storage and emit event
       const updatedUserInfo = { ...userInfo, avatar: response }
       localStorage.setItem('userInfo', JSON.stringify(updatedUserInfo))
       emit('uploadSuccess', response)
+      
+      // Force a re-render of the avatar
+      window.dispatchEvent(new Event('storage'))
     } else {
       throw new Error('上传失败')
     }
@@ -73,6 +68,7 @@ const handleFileSelect = async (event: Event) => {
   <div class="relative">
     <img 
       :src="currentAvatar" 
+      :key="currentAvatar"
       alt="Avatar"
       class="w-32 h-32 rounded-full object-cover neumorphic"
     >

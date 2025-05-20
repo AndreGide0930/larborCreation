@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useColorMode } from '@vueuse/core'
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, ref, watch } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import Navigation from './components/Navigation.vue'
 import ChatWindow from './components/ChatWindow.vue'
@@ -14,6 +14,12 @@ const showNavAndChat = computed(() => {
   return authStore.isAuthenticated && 
          !route.path.includes('/login') && 
          !route.path.includes('/register')
+})
+
+// Add key to force component re-render
+const routeKey = ref(0)
+watch(() => route.fullPath, () => {
+  routeKey.value++
 })
 
 onMounted(() => {
@@ -46,7 +52,7 @@ const handleAfterEnter = () => {
         @before-leave="handleBeforeLeave"
         @after-enter="handleAfterEnter"
       >
-        <component :is="Component" :key="route.fullPath" />
+        <component :is="Component" :key="routeKey" />
       </transition>
     </RouterView>
     <ChatWindow v-if="showNavAndChat" />
