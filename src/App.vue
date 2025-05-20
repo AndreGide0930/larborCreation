@@ -28,10 +28,27 @@ onMounted(() => {
   <div class="min-h-screen bg-brand-gray dark:bg-brand-blue">
     <Navigation v-if="showNavAndChat" />
     <RouterView v-slot="{ Component }">
-      <transition name="page-transition" mode="out-in">
-        <component :is="Component" :key="route.path" />
+      <transition 
+        name="fade" 
+        mode="out-in"
+        @before-leave="() => document.body.style.overflow = 'hidden'"
+        @after-enter="() => document.body.style.overflow = ''"
+      >
+        <component :is="Component" :key="route.fullPath" />
       </transition>
     </RouterView>
     <ChatWindow v-if="showNavAndChat" />
   </div>
 </template>
+
+<style>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
