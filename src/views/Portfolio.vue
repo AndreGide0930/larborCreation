@@ -1,4 +1,3 @@
-<script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { request, multipartPost } from '../utils/request'
@@ -39,6 +38,15 @@ const userInfo = ref(JSON.parse(localStorage.getItem('userInfo') || '{}'))
 const authStore = useAuthStore()
 const i18n = useI18n()
 
+// Preview state
+const previewUrl = ref('')
+const showPreview = ref(false)
+const previewPosition = ref({ x: 0, y: 0 })
+const currentPreviewWork = ref<Work | null>(null)
+const previewLoading = ref(false)
+let previewTimer: number | null = null
+const isHovering = ref(false)
+
 const priorityLabels = {
   1: '非常低',
   2: '低',
@@ -53,6 +61,90 @@ const priorityColors = {
   3: 'bg-green-100 text-green-600',
   4: 'bg-orange-100 text-orange-600',
   5: 'bg-red-100 text-red-600'
+}
+
+// Optimized position calculation with requestAnimationFrame
+const updatePreviewPosition = (event: MouseEvent) => {
+  requestAnimationFrame(() => {
+    const margin = 20 // Margin from mouse pointer
+    const previewWidth = 400
+    const previewHeight = 300
+    
+    // Get viewport dimensions
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    
+    // Calculate initial position (prefer right side)
+    let x = event.clientX + margin
+    let y = event.clientY - previewHeight / 2
+    
+    // Adjust if preview would go off screen
+    if (x + previewWidth > viewportWidth) {
+      x = event.clientX - previewWidth - margin // Show on left side
+    }
+    
+    // Adjust vertical position if needed
+    if (y < margin) {
+      y = margin
+    } else if (y + previewHeight > viewportHeight - margin) {
+      y = viewportHeight - previewHeight - margin
+    }
+    
+    previewPosition.value = { x, y }
+  })
+}
+
+// Debounced mouse move handler
+const handleWorkMove = debounce((event: MouseEvent) => {
+  if (isHovering.value && currentPreviewWork.value) {
+    updatePreviewPosition(event)
+  }
+}, 16) // ~60fps
+
+const handleWorkHover = (work: Work, event: MouseEvent) => {
+  if (!work.pkCreation) return
+  
+  // If hovering over the same work, just update position
+  if (currentPreviewWork.value?.pkCreation === work.pkCreation) {
+    updatePreviewPosition(event)
+    return
+  }
+
+  // Clear existing timer
+  if (previewTimer) {
+    clearTimeout(previewTimer)
+  }
+
+  // Update state
+  currentPreviewWork.value = work
+  showPreview.value = true
+  isHovering.value = true
+  previewLoading.value = true
+  previewUrl.value = ''
+
+  // Set new preview URL with delay
+  previewTimer = window.setTimeout(() => {
+    if (isHovering.value && currentPreviewWork.value?.pkCreation === work.pkCreation) {
+      previewUrl.value = `/api/preview?pkCreation=${work.pkCreation}`
+      setTimeout(() => {
+        if (isHovering.value && currentPreviewWork.value?.pkCreation === work.pkCreation) {
+          previewLoading.value = false
+        }
+      }, 100)
+    }
+  }, 300)
+}
+
+const handleWorkLeave = () => {
+  isHovering.value = false
+  if (previewTimer) {
+    clearTimeout(previewTimer)
+    previewTimer = null
+  }
+  showPreview.value = false
+  currentPreviewWork.value = null
+  previewUrl.value = ''
+  previewLoading.value = false
 }
 
 const resetForm = () => {
@@ -158,90 +250,6 @@ const uploadWork = async () => {
   }
 }
 
-// const previewWork = (work: Work) => {
-//   if (work.pkCreation) {
-//     window.open(`/api/preview?pkCreation=${work.pkCreation}`, '_blank')
-//   }
-// }
-
-// 预览状态
-const previewUrl = ref('')
-const showPreview = ref(false)
-const previewPosition = ref({ x: 0, y: 0 })
-const currentPreviewWork = ref<Work | null>(null)
-const previewLoading = ref(false)
-let previewTimer: number | null = null
-const isHovering = ref(false)
-
-const handleWorkHover = (work: Work, event: MouseEvent) => {
-  if (!work.pkCreation) return
-  
-  // 如果是同一个作品，不做任何处理
-  if (currentPreviewWork.value?.pkCreation === work.pkCreation) {
-    return
-  }
-
-  // 清除之前的定时器
-  if (previewTimer) {
-    clearTimeout(previewTimer)
-  }
-
-  // 更新位置（只在首次悬停时）
-  updatePreviewPosition(event)
-
-  // 更新状态
-  currentPreviewWork.value = work
-  showPreview.value = true
-  isHovering.value = true
-  previewLoading.value = true
-  previewUrl.value = '' // 清空之前的预览URL
-
-  // 设置新的预览URL并加载
-  const newPreviewUrl = `/api/preview?pkCreation=${work.pkCreation}`
-  previewTimer = window.setTimeout(() => {
-    if (isHovering.value && currentPreviewWork.value?.pkCreation === work.pkCreation) {
-      previewUrl.value = newPreviewUrl
-      // 给iframe一点时间加载
-      setTimeout(() => {
-        if (isHovering.value && currentPreviewWork.value?.pkCreation === work.pkCreation) {
-          previewLoading.value = false
-        }
-      }, 100)
-    }
-  }, 300) // 减少延迟时间到300ms
-}
-
-const updatePreviewPosition = (event: MouseEvent) => {
-  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
-  const previewWidth = 400
-  const previewHeight = 300
-  
-  const x = rect.left + (rect.width - previewWidth) / 2
-  const y = rect.top + (rect.height - previewHeight) / 2
-  
-  const viewportWidth = window.innerWidth
-  const viewportHeight = window.innerHeight
-  
-  const finalX = Math.max(10, Math.min(x, viewportWidth - previewWidth - 10))
-  const finalY = Math.max(10, Math.min(y, viewportHeight - previewHeight - 10))
-  
-  previewPosition.value = { x: finalX, y: finalY }
-}
-
-const handleWorkLeave = () => {
-  isHovering.value = false
-  if (previewTimer) {
-    clearTimeout(previewTimer)
-    previewTimer = null
-  }
-  // 立即隐藏预览框
-  showPreview.value = false
-  currentPreviewWork.value = null
-  previewUrl.value = ''
-  previewLoading.value = false
-}
-
-// 点击预览功能
 const handleWorkClick = (work: Work) => {
   if (work.pkCreation) {
     window.open(`/api/preview?pkCreation=${work.pkCreation}`, '_blank')
@@ -260,10 +268,9 @@ const confirmDelete = async () => {
   error.value = ''
   
   try {
-    await request(`/api/delete/${workToDelete.value.pkCreation}`, { // 使用路径参数
-  method: 'DELETE'
-})
-
+    await request(`/api/delete/${workToDelete.value.pkCreation}`, {
+      method: 'DELETE'
+    })
     
     await fetchWorks()
     showDeleteConfirm.value = false
@@ -283,16 +290,13 @@ const handleDownload = async (work: Work) => {
     loading.value = true
     error.value = ''
 
-    // 发起带参数请求
     const response = await fetch(`/api/fileDownload?pkCreation=${work.pkCreation}`)
     
-    // 处理错误响应
     if (!response.ok) {
       const errorData = await response.json().catch(() => null)
       throw new Error(errorData?.message || `下载失败（状态码 ${response.status}）`)
     }
 
-    // 获取文件名（优先从响应头获取）
     const disposition = response.headers.get('Content-Disposition')
     let filename = work.cName || 'download'
     if (disposition) {
@@ -302,12 +306,11 @@ const handleDownload = async (work: Work) => {
       }
     }
 
-    // 创建下载
     const blob = await response.blob()
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = filename // 使用动态解析的文件名
+    link.download = filename
     link.style.display = 'none'
     document.body.appendChild(link)
     link.click()
@@ -426,11 +429,11 @@ onMounted(() => {
         :key="work.pkCreation"
         class="neumorphic rounded-lg overflow-hidden hover:scale-105 transition-transform cursor-pointer relative group"
         @mouseenter="handleWorkHover(work, $event)"
+        @mousemove="handleWorkMove"
         @mouseleave="handleWorkLeave"
         @click="handleWorkClick(work)"
       >
         <div class="p-4">
-          <!-- 标题和优先级 -->
           <div class="flex justify-between items-start mb-3">
             <h3 class="text-xl font-medium truncate max-w-[70%]">{{ work.cName }}</h3>
             <span 
@@ -441,7 +444,6 @@ onMounted(() => {
             </span>
           </div>
 
-          <!-- 文件信息 -->
           <div class="flex flex-wrap gap-2 mb-3">
             <span class="glass px-2 py-1 rounded-full text-sm">
               <i class="fas fa-weight-hanging mr-1"></i>
@@ -453,14 +455,12 @@ onMounted(() => {
             </span>
           </div>
 
-          <!-- 描述 -->
           <div v-if="work.cSynopsis" class="mt-2">
             <p class="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
               {{ work.cSynopsis }}
             </p>
           </div>
 
-          <!-- 文件类型图标和操作按钮 -->
           <div class="absolute bottom-2 right-2 flex items-center gap-2">
             <button 
               v-if="work.pkCreation && work.cUrl"
@@ -492,44 +492,36 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 预览框 -->
     <div 
       v-if="showPreview && currentPreviewWork"
-      class="fixed z-50 bg-white rounded-lg shadow-xl overflow-hidden cursor-pointer transform hover:scale-105 transition-transform"
+      class="fixed z-50 bg-white/90 dark:bg-brand-blue/90 rounded-lg shadow-xl overflow-hidden backdrop-blur-sm cursor-default"
       :style="{
         left: `${previewPosition.x}px`,
         top: `${previewPosition.y}px`,
         width: '400px',
-        height: '300px'
+        height: '300px',
+        transition: 'opacity 0.2s ease'
       }"
-      @click="handleWorkClick(currentPreviewWork)"
       @mouseenter="isHovering = true"
       @mouseleave="handleWorkLeave"
     >
       <div class="relative w-full h-full">
-        <!-- 加载状态 -->
-        <div v-if="previewLoading || !previewUrl" class="absolute inset-0 flex items-center justify-center bg-gray-100">
+        <div 
+          v-if="previewLoading || !previewUrl" 
+          class="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-brand-blue/50"
+        >
           <div class="text-center p-4">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange mx-auto"></div>
-            <div class="text-gray-600 mt-2">加载预览中...</div>
+            <div class="text-gray-600 dark:text-gray-300 mt-2">加载预览中...</div>
           </div>
         </div>
         
-        <!-- 预览内容 -->
         <iframe 
           v-if="previewUrl"
           :src="previewUrl" 
           class="w-full h-full border-0"
           @load="previewLoading = false"
         ></iframe>
-        
-        <!-- 悬停提示 -->
-        <div class="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/10 transition-colors pointer-events-none">
-          <div class="text-white opacity-0 group-hover:opacity-100 transition-opacity text-center">
-            <i class="fas fa-external-link-alt text-2xl"></i>
-            <div class="text-sm mt-1">点击在新窗口打开</div>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -630,7 +622,6 @@ onMounted(() => {
       </form>
     </div>
 
-    <!-- 删除确认对话框 -->
     <div 
       v-if="showDeleteConfirm"
       class="fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm z-50"
@@ -661,3 +652,7 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Previous styles remain unchanged */
+</style>
