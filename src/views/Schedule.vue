@@ -530,51 +530,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="container mx-auto p-4 space-y-6">
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-4">
-        <h1 class="text-2xl font-bold">{{ t('schedule.title') }}</h1>
-        <div class="relative">
-          <button
-            @click="showDatePicker = !showDatePicker"
-            class="glass px-4 py-2 rounded-lg flex items-center gap-2"
-          >
-            <span>📅</span>
-            {{ dayjs(selectedDate).format('YYYY年MM月DD日') }}
-          </button>
-          
-          <input
-            v-if="showDatePicker"
-            type="date"
-            v-model="selectedDate"
-            class="absolute top-full left-0 mt-2 glass px-4 py-2 rounded-lg"
-            @change="() => {
-              showDatePicker = false
-              loadPlanForDate(selectedDate)
-            }"
-          >
-        </div>
-      </div>
-
-      <div class="flex items-center gap-4">
-        <ScheduleReminder
-          v-if="currentPlan"
-          :pk-user-info="userInfo.pkUserInfo"
-          :plan-date="selectedDate"
-        />
-        
-        <button
-          v-if="!currentPlan && !isPastDate"
-          @click="createPlan"
-          :disabled="loading"
-          class="glass px-4 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors flex items-center gap-2"
-        >
-          <span>📝</span>
-          {{ t('schedule.createPlan') }}
-        </button>
-      </div>
-    </div>
-
+  <div class="container mx-auto px-4 py-8">
     <div class="flex flex-col gap-8">
       <div class="text-center">
         <h1 class="text-4xl mb-2 bg-gradient-to-r from-brand-orange to-brand-mint bg-clip-text text-transparent">
@@ -583,6 +539,43 @@ onMounted(async () => {
         <p class="text-brand-blue/60 dark:text-white/60">
           高效规划你的学习时间
         </p>
+      </div>
+
+      <div class="neumorphic p-4 rounded-xl flex justify-between items-center">
+        <div class="flex items-center gap-4">
+          <button 
+            @click="handleDateSelect(dayjs(selectedDate).subtract(1, 'day').format('YYYY-MM-DD'))"
+            class="glass p-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
+            title="前一天"
+          >
+            <span class="text-xl">←</span>
+          </button>
+          
+          <button 
+            @click="goToToday"
+            class="glass px-4 py-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
+            :class="{ 'bg-brand-orange/10': dayjs(selectedDate).isSame(dayjs(), 'day') }"
+          >
+            今天
+          </button>
+
+          <button 
+            @click="handleDateSelect(dayjs(selectedDate).add(1, 'day').format('YYYY-MM-DD'))"
+            class="glass p-2 rounded-lg hover:bg-brand-orange/10 transition-colors"
+            title="后一天"
+          >
+            <span class="text-xl">→</span>
+          </button>
+        </div>
+
+        <button 
+          v-if="currentPlan"
+          @click="deletePlan"
+          :disabled="loading"
+          class="glass px-4 py-2 rounded-xl text-red-500 hover:bg-red-500/10 transition-all duration-300"
+        >
+          {{ loading ? '删除中...' : '删除计划' }}
+        </button>
       </div>
 
       <div class="neumorphic p-8 rounded-3xl">
@@ -609,221 +602,224 @@ onMounted(async () => {
           />
         </div>
       </div>
-    </div>
-  </div>
 
-  <div 
-    v-if="showTaskModal"
-    class="fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm"
-    @click.self="showTaskModal = false"
-  >
-    <div class="neumorphic p-8 rounded-2xl w-full max-w-md">
-      <h2 class="text-2xl font-bold mb-6">{{ t('schedule.timeBlock.createBlock') }}</h2>
-      
-      <div class="mb-4">
-        <div class="glass p-3 rounded-xl mb-4">
-          <h3 class="font-semibold mb-2">{{ t('schedule.timeBlock.time') }}</h3>
-          <div class="text-center text-lg">
-            {{ dayjs(selectedTimeSlot).format('HH:mm') }}
-          </div>
-        </div>
-
-        <div v-if="availableTasks.length === 0" class="text-center text-gray-500 my-4">
-          {{ t('schedule.timeBlock.noTasks') }}
-        </div>
-
-        <div class="max-h-[400px] overflow-y-auto space-y-2">
-          <label 
-            v-for="task in availableTasks" 
-            :key="task.pkCreation"
-            class="glass p-3 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-brand-orange/5 transition-colors"
-          >
-            <input 
-              type="checkbox"
-              :value="task.pkCreation"
-              v-model="selectedTasks"
-              class="w-5 h-5 rounded-lg accent-brand-orange"
-            >
-            <div class="flex-1">
-              <div class="font-medium">{{ task.cName }}</div>
-              <div v-if="task.cSynopsis" class="text-sm opacity-75">{{ task.cSynopsis }}</div>
-              <div class="flex gap-2 mt-1">
-                <span class="text-xs px-2 py-1 rounded-full bg-brand-orange/10 text-brand-orange">
-                  优先级: {{ task.cPriority }}
-                </span>
+      <!-- Task Selection Modal -->
+      <div 
+        v-if="showTaskModal"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm z-50"
+        @click.self="showTaskModal = false"
+      >
+        <div class="neumorphic p-8 rounded-2xl w-full max-w-md mx-4">
+          <h2 class="text-2xl font-bold mb-6">{{ t('schedule.timeBlock.createBlock') }}</h2>
+          
+          <div class="mb-4">
+            <div class="glass p-3 rounded-xl mb-4">
+              <h3 class="font-semibold mb-2">{{ t('schedule.timeBlock.time') }}</h3>
+              <div class="text-center text-lg">
+                {{ dayjs(selectedTimeSlot).format('HH:mm') }}
               </div>
             </div>
-          </label>
-        </div>
-      </div>
 
-      <div class="flex gap-4 pt-4">
-        <button
-          @click="createTimedoro"
-          :disabled="loading || selectedTasks.length === 0"
-          class="flex-1 bg-gradient-to-r from-brand-orange to-brand-mint text-white py-3 rounded-xl font-medium transition-all hover:opacity-90 disabled:opacity-50"
-        >
-          {{ loading ? t('common.loading') : t('schedule.timeBlock.createBlock') }}
-        </button>
-        <button
-          type="button"
-          @click="showTaskModal = false"
-          class="glass px-6 py-3 rounded-xl hover:bg-brand-orange/10 transition-colors"
-        >
-          {{ t('common.cancel') }}
-        </button>
-      </div>
-    </div>
-  </div>
+            <div v-if="availableTasks.length === 0" class="text-center text-gray-500 my-4">
+              {{ t('schedule.timeBlock.noTasks') }}
+            </div>
 
-  <div 
-    v-if="showTimedoroModal && selectedTimedoro"
-    class="fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm"
-    @click.self="showTimedoroModal = false"
-  >
-    <div class="neumorphic p-8 rounded-2xl w-full max-w-md">
-      <h2 class="text-2xl font-bold mb-6">{{ t('schedule.editTimeBlock') }}</h2>
-      
-      <div class="space-y-6">
-        <div class="glass p-4 rounded-xl">
-          <h3 class="font-semibold mb-2">{{ t('schedule.timeBlock.time') }}</h3>
-          <div class="text-center text-xl">
-            {{ dayjs(selectedTimedoro.timeSlice).format('HH:mm') }}
+            <div class="max-h-[400px] overflow-y-auto space-y-2">
+              <label 
+                v-for="task in availableTasks" 
+                :key="task.pkCreation"
+                class="glass p-3 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-brand-orange/5 transition-colors"
+              >
+                <input 
+                  type="checkbox"
+                  :value="task.pkCreation"
+                  v-model="selectedTasks"
+                  class="w-5 h-5 rounded-lg accent-brand-orange"
+                >
+                <div class="flex-1">
+                  <div class="font-medium">{{ task.cName }}</div>
+                  <div v-if="task.cSynopsis" class="text-sm opacity-75">{{ task.cSynopsis }}</div>
+                  <div class="flex gap-2 mt-1">
+                    <span class="text-xs px-2 py-1 rounded-full bg-brand-orange/10 text-brand-orange">
+                      优先级: {{ task.cPriority }}
+                    </span>
+                  </div>
+                </div>
+              </label>
+            </div>
           </div>
-        </div>
 
-        <div class="glass p-4 rounded-xl">
-          <div class="flex justify-between items-center mb-2">
-            <h3 class="font-semibold">{{ t('schedule.timeBlock.tasks') }}</h3>
+          <div class="flex gap-4 pt-4">
             <button
-              @click="handleAddTask"
-              class="glass px-3 py-1 rounded-lg text-sm hover:bg-brand-orange/10 transition-colors"
+              @click="createTimedoro"
+              :disabled="loading || selectedTasks.length === 0"
+              class="flex-1 bg-gradient-to-r from-brand-orange to-brand-mint text-white py-3 rounded-xl font-medium transition-all hover:opacity-90 disabled:opacity-50"
             >
-              {{ t('schedule.timeBlock.addTasks') }}
+              {{ loading ? t('common.loading') : t('schedule.timeBlock.createBlock') }}
+            </button>
+            <button
+              type="button"
+              @click="showTaskModal = false"
+              class="glass px-6 py-3 rounded-xl hover:bg-brand-orange/10 transition-colors"
+            >
+              {{ t('common.cancel') }}
             </button>
           </div>
+        </div>
+      </div>
+
+      <!-- Timedoro Edit Modal -->
+      <div 
+        v-if="showTimedoroModal && selectedTimedoro"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm z-50"
+        @click.self="showTimedoroModal = false"
+      >
+        <div class="neumorphic p-8 rounded-2xl w-full max-w-md mx-4">
+          <h2 class="text-2xl font-bold mb-6">{{ t('schedule.editTimeBlock') }}</h2>
           
-          <div v-if="selectedTimedoro.creations.length === 0" class="text-center text-gray-500 my-4">
-            {{ t('schedule.timeBlock.noTasks') }}
-          </div>
-
-          <div v-else class="space-y-2">
-            <div 
-              v-for="task in selectedTimedoro.creations" 
-              :key="task.pkCreation"
-              class="flex items-center justify-between p-2 rounded-lg hover:bg-brand-orange/5"
-            >
-              <div class="flex items-center gap-2">
-                <span 
-                  class="w-2 h-2 rounded-full"
-                  :class="task.cType === 'DONE' ? 'bg-green-500' : 'bg-brand-orange'"
-                ></span>
-                <span>{{ task.cName }}</span>
+          <div class="space-y-6">
+            <div class="glass p-4 rounded-xl">
+              <h3 class="font-semibold mb-2">{{ t('schedule.timeBlock.time') }}</h3>
+              <div class="text-center text-xl">
+                {{ dayjs(selectedTimedoro.timeSlice).format('HH:mm') }}
               </div>
-              <div class="flex items-center gap-2">
+            </div>
+
+            <div class="glass p-4 rounded-xl">
+              <div class="flex justify-between items-center mb-2">
+                <h3 class="font-semibold">{{ t('schedule.timeBlock.tasks') }}</h3>
                 <button
-                  v-if="task.cType === 'TODO'"
-                  @click="updateTaskStatus(task, selectedTimedoro)"
-                  class="text-green-500 hover:bg-green-500/10 p-1 rounded"
-                  :title="t('schedule.timeBlock.markDone')"
+                  @click="handleAddTask"
+                  class="glass px-3 py-1 rounded-lg text-sm hover:bg-brand-orange/10 transition-colors"
                 >
-                  ✓
-                </button>
-                <button
-                  @click="removeTaskFromTimedoro(task.pkCreation, selectedTimedoro.pkTimedoro)"
-                  class="text-red-500 hover:bg-red-500/10 p-1 rounded"
-                  :title="t('schedule.timeBlock.removeTasks')"
-                >
-                  ×
+                  {{ t('schedule.timeBlock.addTasks') }}
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
+              
+              <div v-if="selectedTimedoro.creations.length === 0" class="text-center text-gray-500 my-4">
+                {{ t('schedule.timeBlock.noTasks') }}
+              </div>
 
-        <div class="glass p-4 rounded-xl">
-          <h3 class="font-semibold mb-2">{{ t('schedule.timeBlock.stats') }}</h3>
-          <div class="flex justify-around text-center">
-            <div>
-              <div class="text-2xl font-bold text-green-500">{{ selectedTimedoro.sumDone }}</div>
-              <div class="text-sm opacity-75">{{ t('tasks.status.done') }}</div>
-            </div>
-            <div>
-              <div class="text-2xl font-bold text-brand-orange">{{ selectedTimedoro.sumTodo }}</div>
-              <div class="text-sm opacity-75">{{ t('tasks.status.todo') }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="flex gap-4 mt-8">
-        <button
-          @click="startFocus"
-          :disabled="loading || !selectedTimedoro.creations.some(task => task.cType === 'TODO')"
-          class="flex-1 bg-gradient-to-r from-brand-orange to-brand-mint text-white py-3 rounded-xl font-medium transition-all hover:opacity-90"
-        >
-          {{ loading ? '加载中...' : '现在专注' }}
-        </button>
-        <button
-          @click="deleteTimedoro(selectedTimedoro.pkTimedoro)"
-          :disabled="loading"
-          class="glass px-6 py-3 rounded-xl text-red-500 hover:bg-red-500/10 transition-colors"
-        >
-          删除
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <div 
-    v-if="showAddTaskModal"
-    class="fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm"
-    @click.self="showAddTaskModal = false"
-  >
-    <div class="neumorphic p-8 rounded-2xl w-full max-w-md">
-      <h2 class="text-2xl font-bold mb-6">添加任务</h2>
-      
-      <div class="mb-4">
-        <div class="max-h-[400px] overflow-y-auto space-y-2">
-          <label 
-            v-for="task in availableTasksForEdit" 
-            :key="task.pkCreation"
-            class="glass p-3 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-brand-orange/5 transition-colors"
-          >
-            <input 
-              type="checkbox"
-              :value="task.pkCreation"
-              v-model="selectedTasksForEdit"
-              class="w-5 h-5 rounded-lg accent-brand-orange"
-            >
-            <div class="flex-1">
-              <div class="font-medium">{{ task.cName }}</div>
-              <div v-if="task.cSynopsis" class="text-sm opacity-75">{{ task.cSynopsis }}</div>
-              <div class="flex gap-2 mt-1">
-                <span class="text-xs px-2 py-1 rounded-full bg-brand-orange/10 text-brand-orange">
-                  优先级: {{ task.cPriority }}
-                </span>
+              <div v-else class="space-y-2">
+                <div 
+                  v-for="task in selectedTimedoro.creations" 
+                  :key="task.pkCreation"
+                  class="flex items-center justify-between p-2 rounded-lg hover:bg-brand-orange/5"
+                >
+                  <div class="flex items-center gap-2">
+                    <span 
+                      class="w-2 h-2 rounded-full"
+                      :class="task.cType === 'DONE' ? 'bg-green-500' : 'bg-brand-orange'"
+                    ></span>
+                    <span>{{ task.cName }}</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button
+                      v-if="task.cType === 'TODO'"
+                      @click="updateTaskStatus(task, selectedTimedoro)"
+                      class="text-green-500 hover:bg-green-500/10 p-1 rounded"
+                      :title="t('schedule.timeBlock.markDone')"
+                    >
+                      ✓
+                    </button>
+                    <button
+                      @click="removeTaskFromTimedoro(task.pkCreation, selectedTimedoro.pkTimedoro)"
+                      class="text-red-500 hover:bg-red-500/10 p-1 rounded"
+                      :title="t('schedule.timeBlock.removeTasks')"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
-          </label>
+
+            <div class="glass p-4 rounded-xl">
+              <h3 class="font-semibold mb-2">{{ t('schedule.timeBlock.stats') }}</h3>
+              <div class="flex justify-around text-center">
+                <div>
+                  <div class="text-2xl font-bold text-green-500">{{ selectedTimedoro.sumDone }}</div>
+                  <div class="text-sm opacity-75">{{ t('tasks.status.done') }}</div>
+                </div>
+                <div>
+                  <div class="text-2xl font-bold text-brand-orange">{{ selectedTimedoro.sumTodo }}</div>
+                  <div class="text-sm opacity-75">{{ t('tasks.status.todo') }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex gap-4 mt-8">
+            <button
+              @click="startFocus"
+              :disabled="loading || !selectedTimedoro.creations.some(task => task.cType === 'TODO')"
+              class="flex-1 bg-gradient-to-r from-brand-orange to-brand-mint text-white py-3 rounded-xl font-medium transition-all hover:opacity-90"
+            >
+              {{ loading ? '加载中...' : '现在专注' }}
+            </button>
+            <button
+              @click="deleteTimedoro(selectedTimedoro.pkTimedoro)"
+              :disabled="loading"
+              class="glass px-6 py-3 rounded-xl text-red-500 hover:bg-red-500/10 transition-colors"
+            >
+              删除
+            </button>
+          </div>
         </div>
       </div>
 
-      <div class="flex gap-4 pt-4">
-        <button
-          @click="handleAddTasksToTimedoro"
-          :disabled="loading || selectedTasksForEdit.length === 0"
-          class="flex-1 bg-gradient-to-r from-brand-orange to-brand-mint text-white py-3 rounded-xl font-medium transition-all hover:opacity-90 disabled:opacity-50"
-        >
-          {{ loading ? '添加中...' : '添加任务' }}
-        </button>
-        <button
-          type="button"
-          @click="showAddTaskModal = false"
-          class="glass px-6 py-3 rounded-xl hover:bg-brand-orange/10 transition-colors"
-        >
-          取消
-        </button>
+      <!-- Add Task Modal -->
+      <div 
+        v-if="showAddTaskModal"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm z-50"
+        @click.self="showAddTaskModal = false"
+      >
+        <div class="neumorphic p-8 rounded-2xl w-full max-w-md mx-4">
+          <h2 class="text-2xl font-bold mb-6">添加任务</h2>
+          
+          <div class="mb-4">
+            <div class="max-h-[400px] overflow-y-auto space-y-2">
+              <label 
+                v-for="task in availableTasksForEdit" 
+                :key="task.pkCreation"
+                class="glass p-3 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-brand-orange/5 transition-colors"
+              >
+                <input 
+                  type="checkbox"
+                  :value="task.pkCreation"
+                  v-model="selectedTasksForEdit"
+                  class="w-5 h-5 rounded-lg accent-brand-orange"
+                >
+                <div class="flex-1">
+                  <div class="font-medium">{{ task.cName }}</div>
+                  <div v-if="task.cSynopsis" class="text-sm opacity-75">{{ task.cSynopsis }}</div>
+                  <div class="flex gap-2 mt-1">
+                    <span class="text-xs px-2 py-1 rounded-full bg-brand-orange/10 text-brand-orange">
+                      优先级: {{ task.cPriority }}
+                    </span>
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="flex gap-4 pt-4">
+            <button
+              @click="handleAddTasksToTimedoro"
+              :disabled="loading || selectedTasksForEdit.length === 0"
+              class="flex-1 bg-gradient-to-r from-brand-orange to-brand-mint text-white py-3 rounded-xl font-medium transition-all hover:opacity-90 disabled:opacity-50"
+            >
+              {{ loading ? '添加中...' : '添加任务' }}
+            </button>
+            <button
+              type="button"
+              @click="showAddTaskModal = false"
+              class="glass px-6 py-3 rounded-xl hover:bg-brand-orange/10 transition-colors"
+            >
+              取消
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
