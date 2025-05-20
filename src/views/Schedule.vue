@@ -76,6 +76,42 @@ const isFutureDate = computed(() => {
   return dayjs(selectedDate.value).isAfter(today)
 })
 
+// 新增日期选择处理函数
+const handleDateSelect = async (date: string) => {
+  selectedDate.value = date
+  await loadPlanForDate(date)
+}
+
+// 新增返回今天按钮处理函数
+const goToToday = async () => {
+  const today = dayjs().format('YYYY-MM-DD')
+  selectedDate.value = today
+  await loadPlanForDate(today)
+}
+
+// 新增删除计划功能
+const deletePlan = async () => {
+  if (!currentPlan.value?.pkPlan) return
+
+  try {
+    loading.value = true
+    error.value = ''
+
+    await request('/api/deletePlan', {
+      method: 'DELETE',
+      params: {
+        pkPlan: currentPlan.value.pkPlan
+      }
+    })
+
+    currentPlan.value = null
+  } catch (e: any) {
+    error.value = e.message || '删除计划失败'
+  } finally {
+    loading.value = false
+  }
+}
+
 async function loadPlanForDate(date: string) {
   try {
     loading.value = true
@@ -578,6 +614,12 @@ onMounted(async () => {
         </button>
       </div>
 
+      <ScheduleReminder 
+        v-if="currentPlan && !isPastDate"
+        :pk-user-info="userInfo.pkUserInfo"
+        :plan-date="selectedDate"
+      />
+
       <div class="neumorphic p-8 rounded-3xl">
         <div v-if="!currentPlan" class="text-center py-12">
           <div v-if="isPastDate" class="text-red-500 mb-4">
@@ -798,6 +840,7 @@ onMounted(async () => {
                       优先级: {{ task.cPriority }}
                     </span>
                   </div>
+                
                 </div>
               </label>
             </div>
