@@ -145,6 +145,385 @@ async function createPlan() {
   }
 }
 
+async function createTimedoro() {
+  if (!selectedTimeSlot.value || !currentPlan.value || selectedTasks.value.length === 0) return
+
+  try {
+    loading.value = true
+    error.value = ''
+
+    // Get selected tasks info
+    const selectedTasksInfo = await Promise.all(
+      selectedTasks.value.map(async (taskId) => {
+        const response = await request('/api/readOneWork', {
+          params: {
+            pkCreation: taskId
+          }
+        })
+        return response
+      })
+    )
+
+    // Calculate stats
+    const stats = calculateStats(selectedTasksInfo)
+
+    const timedoroData = {
+      timeSlice: selectedTimeSlot.value,
+      plans: [{
+        pkPlan: currentPlan.value.pkPlan
+      }],
+      creations: selectedTasks.value.map(taskId => ({
+        pkCreation: taskId
+      })),
+      sumDone: stats.sumDone,
+      sumTodo: stats.sumTodo
+    }
+
+    await request('/api/createTimedoro', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(timedoroData)
+    })
+
+    await loadPlanForDate(selectedDate.value)
+    showTaskModal.value = false
+    selectedTasks.value = []
+  } catch (e: any) {
+    error.value = e.message || '创建专注时间失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function updateTimedoro() {
+  if (!selectedTimedoro.value) return
+
+  try {
+    loading.value = true
+    error.value = ''
+
+    await request('/api/updateTimedoro', {
+      method: 'PUT',
+      body: JSON.stringify(selectedTimedoro.value)
+    })
+
+    await loadPlanForDate(selectedDate.value)
+    showTimedoroModal.value = false
+  } catch (e: any) {
+    error.value = e.message || '更新专注时间失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function deleteTimedoro(pkTimedoro: number) {
+  try {
+    loading.value = true
+    error.value = ''
+
+    await request('/api/deleteTimedoro', {
+      method: 'DELETE',
+      params: {
+        pkTimedoro
+      }
+    })
+
+    await loadPlanForDate(selectedDate.value)
+    showTimedoroModal.value = false
+  } catch (e: any) {
+    error.value = e.message || '删除专注时间失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function removeTaskFromTimedoro(pkCreation: number, pkTimedoro: number) {
+  try {
+    loading.value = true
+    error.value = ''
+
+    await request(`/api/works/${pkCreation}/timedoro/${pkTimedoro}`, {
+      method: 'DELETE'
+    })
+
+    // Update current timedoro's creations list
+    if (selectedTimedoro.value) {
+      const updatedCreations = selectedTimedoro.value.creations.filter(task => task.pkCreation !== pkCreation)
+      const stats = calculateStats(updatedCreations)
+      
+      selectedTimedoro.value = {
+        ...selectedTimedoro.value,
+        creations: updatedCreations,
+        sumDone: stats.sumDone,
+        sumTodo: stats.sumTodo
+      }
+    }
+
+    // Reload plan data to update view
+    await loadPlanForDate(selectedDate.value)
+
+    // If modal is open, reload available tasks list
+    if (showAddTaskModal.value) {
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      const tasks = await request('/api/readAllWorkById', {
+        params: {
+          pkUserInfo: userInfo.pkUserInfo
+        }
+      })
+      
+      // Update available tasks list, filtering out tasks already in timedoro
+      availableTasksForEdit.value = tasks.filter((task: Task) => 
+        task.cType === 'TODO' && 
+        !selectedTimedoro.value?.creations.some(creation => creation.pkCreation === task.pkCreation)
+      )
+    }
+  } catch (e: any) {
+    error.value = e.message || '移除任务失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleAddTask = async () => {
+  try {
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+    const tasks = await request('/api/readAllWorkById', {
+      params: {
+        pkUserInfo: userInfo.pkUserInfo
+      }
+    })
+    
+    // Filter out tasks not in current timedoro
+    availableTasksForEdit.value = tasks.filter((task: Task) => 
+      task.cType === 'TODO' && 
+      !selectedTimedoro.value?.creations.some(creation => creation.pkCreation === task.pkCreation)
+    )
+    selectedTasksForEdit.value = []
+    showAddTaskModal.value = true
+  } catch (e: any) {
+    error.value = e.message || '加载任务失败'
+  }
+}
+
+const handleAddTasksToTimedoro = async () => {
+  if (!selectedTimedoro.value || selectedTasksForEdit.value.length === 0) return
+
+  try {
+    loading.value = true
+    error.value = ''
+
+    // Get selected tasks info
+    const selectedTasks = await Promise.all(
+      selectedTasksForEdit.value.map(async (taskId) => {
+        const response = await request('/api/readOneWork', {
+          params: {
+            pkCreation: taskId
+          }
+        })
+        return response
+      })
+    )
+
+    // Create new creations array
+    const updatedCreations = [
+      ...selectedTimedoro.value.creations,
+      ...selectedTasks
+    ]
+
+    // Calculate new stats
+    const stats = calculateStats(updatedCreations)
+
+    // Update timedoro
+    const apiTimedoro = {
+      pkTimedoro: selectedTimedoro.value.pkTimedoro,
+      timeSlice: selectedTimedoro.value.timeSlice,
+      creations: updatedCreations.map(task => ({ pkCreation: task.pkCreation })),
+      sumDone: stats.sumDone,
+      sumTodo: stats.sumTodo,
+      fkUserInfo: selectedTimedoro.value.fkUserInfo
+    }
+
+    await request('/api/updateTimedoro', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(apiTimedoro)
+    })
+
+    // Update local state
+    selectedTimedoro.value = {
+      ...selectedTimedoro.value,
+      creations: updatedCreations,
+      sumDone: stats.sumDone,
+      sumTodo: stats.sumTodo
+    }
+
+    // Reload plan data to update view
+    await loadPlanForDate(selectedDate.value)
+
+    // Clear selected tasks
+    selectedTasksForEdit.value = []
+    showAddTaskModal.value = false
+  } catch (e: any) {
+    error.value = e.message || '更新专注时间失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+const startFocus = () => {
+  if (!selectedTimedoro.value || selectedTimedoro.value.creations.length === 0) return
+
+  // Get incomplete tasks
+  const todoTasks = selectedTimedoro.value.creations.filter(task => task.cType === 'TODO')
+  if (todoTasks.length === 0) {
+    error.value = '没有待办任务可以专注'
+    return
+  }
+
+  // Pass all todo tasks to pomodoro timer
+  const tasks = todoTasks.map(task => ({
+    id: task.pkCreation,
+    title: task.cName,
+    description: task.cSynopsis || '',
+    priority: task.cPriority,
+    type: task.cType
+  }))
+
+  timerStore.startTimer(tasks)
+  showTimedoroModal.value = false
+}
+
+const updateTaskStatus = async (task: Task, timedoro: Timedoro) => {
+  try {
+    loading.value = true
+    error.value = ''
+
+    // Get latest task info
+    const updatedTask = await request('/api/readOneWork', {
+      params: {
+        pkCreation: task.pkCreation
+      }
+    })
+
+    // Update local timedoro task status
+    const taskIndex = timedoro.creations.findIndex(t => t.pkCreation === task.pkCreation)
+    if (taskIndex !== -1) {
+      timedoro.creations[taskIndex] = updatedTask
+    }
+
+    // Recalculate stats
+    const stats = calculateStats(timedoro.creations)
+    
+    // Update timedoro stats
+    const updatedTimedoro = {
+      ...timedoro,
+      sumDone: stats.sumDone,
+      sumTodo: stats.sumTodo
+    }
+
+    // Call API to update timedoro
+    await request('/api/updateTimedoro', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updatedTimedoro)
+    })
+
+    // Update local state
+    if (selectedTimedoro.value && selectedTimedoro.value.pkTimedoro === timedoro.pkTimedoro) {
+      selectedTimedoro.value = updatedTimedoro
+    }
+
+    // Reload plan data to update view
+    await loadPlanForDate(selectedDate.value)
+  } catch (e: any) {
+    error.value = e.message || '更新任务状态失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+const calculateStats = (creations: Task[]) => {
+  return {
+    sumDone: creations.filter(task => task.cType === 'DONE').length,
+    sumTodo: creations.filter(task => task.cType === 'TODO').length
+  }
+}
+
+const handleTimeBlockClick = async (time: string) => {
+  if (!currentPlan.value) {
+    error.value = '请先创建今日计划'
+    return
+  }
+
+  // Convert time string to complete datetime
+  const timeStr = time.split(':')
+  const hours = parseInt(timeStr[0])
+  const minutes = parseInt(timeStr[1])
+  
+  // Use local time to create datetime object
+  const selectedDateTime = dayjs(selectedDate.value)
+    .hour(hours)
+    .minute(minutes)
+    .second(0)
+    .millisecond(0)
+  
+  // Convert to UTC time
+  selectedTimeSlot.value = selectedDateTime.utc().format()
+  
+  try {
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+    const tasks = await request('/api/readAllWorkById', {
+      params: {
+        pkUserInfo: userInfo.pkUserInfo
+      }
+    })
+    
+    availableTasks.value = tasks.filter((task: Task) => task.cType === 'TODO')
+    selectedTasks.value = []
+    showTaskModal.value = true
+  } catch (e: any) {
+    error.value = e.message || '加载任务失败'
+  }
+}
+
+const handleTimeBlockEdit = async (timedoro: Timedoro) => {
+  try {
+    loading.value = true
+    error.value = ''
+    
+    // Get latest timedoro data
+    const updatedTimedoro = await request('/api/readTimedoro', {
+      params: {
+        pkTimedoro: timedoro.pkTimedoro
+      }
+    })
+    
+    if (updatedTimedoro) {
+      const stats = calculateStats(updatedTimedoro.creations)
+      
+      selectedTimedoro.value = {
+        ...updatedTimedoro,
+        sumDone: stats.sumDone,
+        sumTodo: stats.sumTodo
+      }
+      
+      showTimedoroModal.value = true
+    } else {
+      throw new Error('获取时间块数据失败')
+    }
+  } catch (e: any) {
+    error.value = e.message || '获取时间块数据失败'
+  } finally {
+    loading.value = false
+  }
+}
+
 onMounted(async () => {
   await loadPlanForDate(selectedDate.value)
 })
@@ -225,10 +604,226 @@ onMounted(async () => {
         <div v-else>
           <TimeGrid
             :timedoroes="currentPlan.timedoroes"
-            :onTimeBlockClick="() => {}"
-            :onTimeBlockEdit="() => {}"
+            :onTimeBlockClick="handleTimeBlockClick"
+            :onTimeBlockEdit="handleTimeBlockEdit"
           />
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div 
+    v-if="showTaskModal"
+    class="fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm"
+    @click.self="showTaskModal = false"
+  >
+    <div class="neumorphic p-8 rounded-2xl w-full max-w-md">
+      <h2 class="text-2xl font-bold mb-6">{{ t('schedule.timeBlock.createBlock') }}</h2>
+      
+      <div class="mb-4">
+        <div class="glass p-3 rounded-xl mb-4">
+          <h3 class="font-semibold mb-2">{{ t('schedule.timeBlock.time') }}</h3>
+          <div class="text-center text-lg">
+            {{ dayjs(selectedTimeSlot).format('HH:mm') }}
+          </div>
+        </div>
+
+        <div v-if="availableTasks.length === 0" class="text-center text-gray-500 my-4">
+          {{ t('schedule.timeBlock.noTasks') }}
+        </div>
+
+        <div class="max-h-[400px] overflow-y-auto space-y-2">
+          <label 
+            v-for="task in availableTasks" 
+            :key="task.pkCreation"
+            class="glass p-3 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-brand-orange/5 transition-colors"
+          >
+            <input 
+              type="checkbox"
+              :value="task.pkCreation"
+              v-model="selectedTasks"
+              class="w-5 h-5 rounded-lg accent-brand-orange"
+            >
+            <div class="flex-1">
+              <div class="font-medium">{{ task.cName }}</div>
+              <div v-if="task.cSynopsis" class="text-sm opacity-75">{{ task.cSynopsis }}</div>
+              <div class="flex gap-2 mt-1">
+                <span class="text-xs px-2 py-1 rounded-full bg-brand-orange/10 text-brand-orange">
+                  优先级: {{ task.cPriority }}
+                </span>
+              </div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="flex gap-4 pt-4">
+        <button
+          @click="createTimedoro"
+          :disabled="loading || selectedTasks.length === 0"
+          class="flex-1 bg-gradient-to-r from-brand-orange to-brand-mint text-white py-3 rounded-xl font-medium transition-all hover:opacity-90 disabled:opacity-50"
+        >
+          {{ loading ? t('common.loading') : t('schedule.timeBlock.createBlock') }}
+        </button>
+        <button
+          type="button"
+          @click="showTaskModal = false"
+          class="glass px-6 py-3 rounded-xl hover:bg-brand-orange/10 transition-colors"
+        >
+          {{ t('common.cancel') }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div 
+    v-if="showTimedoroModal && selectedTimedoro"
+    class="fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm"
+    @click.self="showTimedoroModal = false"
+  >
+    <div class="neumorphic p-8 rounded-2xl w-full max-w-md">
+      <h2 class="text-2xl font-bold mb-6">{{ t('schedule.editTimeBlock') }}</h2>
+      
+      <div class="space-y-6">
+        <div class="glass p-4 rounded-xl">
+          <h3 class="font-semibold mb-2">{{ t('schedule.timeBlock.time') }}</h3>
+          <div class="text-center text-xl">
+            {{ dayjs(selectedTimedoro.timeSlice).format('HH:mm') }}
+          </div>
+        </div>
+
+        <div class="glass p-4 rounded-xl">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="font-semibold">{{ t('schedule.timeBlock.tasks') }}</h3>
+            <button
+              @click="handleAddTask"
+              class="glass px-3 py-1 rounded-lg text-sm hover:bg-brand-orange/10 transition-colors"
+            >
+              {{ t('schedule.timeBlock.addTasks') }}
+            </button>
+          </div>
+          
+          <div v-if="selectedTimedoro.creations.length === 0" class="text-center text-gray-500 my-4">
+            {{ t('schedule.timeBlock.noTasks') }}
+          </div>
+
+          <div v-else class="space-y-2">
+            <div 
+              v-for="task in selectedTimedoro.creations" 
+              :key="task.pkCreation"
+              class="flex items-center justify-between p-2 rounded-lg hover:bg-brand-orange/5"
+            >
+              <div class="flex items-center gap-2">
+                <span 
+                  class="w-2 h-2 rounded-full"
+                  :class="task.cType === 'DONE' ? 'bg-green-500' : 'bg-brand-orange'"
+                ></span>
+                <span>{{ task.cName }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button
+                  v-if="task.cType === 'TODO'"
+                  @click="updateTaskStatus(task, selectedTimedoro)"
+                  class="text-green-500 hover:bg-green-500/10 p-1 rounded"
+                  :title="t('schedule.timeBlock.markDone')"
+                >
+                  ✓
+                </button>
+                <button
+                  @click="removeTaskFromTimedoro(task.pkCreation, selectedTimedoro.pkTimedoro)"
+                  class="text-red-500 hover:bg-red-500/10 p-1 rounded"
+                  :title="t('schedule.timeBlock.removeTasks')"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass p-4 rounded-xl">
+          <h3 class="font-semibold mb-2">{{ t('schedule.timeBlock.stats') }}</h3>
+          <div class="flex justify-around text-center">
+            <div>
+              <div class="text-2xl font-bold text-green-500">{{ selectedTimedoro.sumDone }}</div>
+              <div class="text-sm opacity-75">{{ t('tasks.status.done') }}</div>
+            </div>
+            <div>
+              <div class="text-2xl font-bold text-brand-orange">{{ selectedTimedoro.sumTodo }}</div>
+              <div class="text-sm opacity-75">{{ t('tasks.status.todo') }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-4 mt-8">
+        <button
+          @click="startFocus"
+          :disabled="loading || !selectedTimedoro.creations.some(task => task.cType === 'TODO')"
+          class="flex-1 bg-gradient-to-r from-brand-orange to-brand-mint text-white py-3 rounded-xl font-medium transition-all hover:opacity-90"
+        >
+          {{ loading ? '加载中...' : '现在专注' }}
+        </button>
+        <button
+          @click="deleteTimedoro(selectedTimedoro.pkTimedoro)"
+          :disabled="loading"
+          class="glass px-6 py-3 rounded-xl text-red-500 hover:bg-red-500/10 transition-colors"
+        >
+          删除
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div 
+    v-if="showAddTaskModal"
+    class="fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm"
+    @click.self="showAddTaskModal = false"
+  >
+    <div class="neumorphic p-8 rounded-2xl w-full max-w-md">
+      <h2 class="text-2xl font-bold mb-6">添加任务</h2>
+      
+      <div class="mb-4">
+        <div class="max-h-[400px] overflow-y-auto space-y-2">
+          <label 
+            v-for="task in availableTasksForEdit" 
+            :key="task.pkCreation"
+            class="glass p-3 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-brand-orange/5 transition-colors"
+          >
+            <input 
+              type="checkbox"
+              :value="task.pkCreation"
+              v-model="selectedTasksForEdit"
+              class="w-5 h-5 rounded-lg accent-brand-orange"
+            >
+            <div class="flex-1">
+              <div class="font-medium">{{ task.cName }}</div>
+              <div v-if="task.cSynopsis" class="text-sm opacity-75">{{ task.cSynopsis }}</div>
+              <div class="flex gap-2 mt-1">
+                <span class="text-xs px-2 py-1 rounded-full bg-brand-orange/10 text-brand-orange">
+                  优先级: {{ task.cPriority }}
+                </span>
+              </div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="flex gap-4 pt-4">
+        <button
+          @click="handleAddTasksToTimedoro"
+          :disabled="loading || selectedTasksForEdit.length === 0"
+          class="flex-1 bg-gradient-to-r from-brand-orange to-brand-mint text-white py-3 rounded-xl font-medium transition-all hover:opacity-90 disabled:opacity-50"
+        >
+          {{ loading ? '添加中...' : '添加任务' }}
+        </button>
+        <button
+          type="button"
+          @click="showAddTaskModal = false"
+          class="glass px-6 py-3 rounded-xl hover:bg-brand-orange/10 transition-colors"
+        >
+          取消
+        </button>
       </div>
     </div>
   </div>
