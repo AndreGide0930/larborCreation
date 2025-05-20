@@ -8,6 +8,7 @@ import Toast from '../components/Toast.vue'
 import Modal from '../components/Modal.vue'
 import FormError from '../components/FormError.vue'
 import SystemSettings from '../components/SystemSettings.vue'
+import AvatarUpload from '../components/AvatarUpload.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -71,79 +72,14 @@ const showModal = (title: string, message: string, type: 'error' | 'warning' | '
   }
 }
 
-// Handle avatar upload
-const handleAvatarUpload = async (event: Event) => {
-  const file = (event.target as HTMLInputElement).files?.[0]
-  if (!file) return
-
-  // Validate file type
-  if (!file.type.startsWith('image/')) {
-    showToast(t('profile.messages.selectImage'), 'error')
-    return
+const handleAvatarUploadSuccess = (url: string) => {
+  userProfile.value.avatar = url
+  const updatedUserInfo = {
+    ...userInfo.value,
+    avatar: url
   }
-
-  // Validate file size (2MB limit)
-  if (file.size > 2 * 1024 * 1024) {
-    showToast(t('profile.messages.imageTooLarge'), 'error')
-    return
-  }
-
-  try {
-    avatarLoading.value = true
-
-    // Create a unique filename
-    const timestamp = Date.now()
-    const extension = file.name.split('.').pop()
-    const fileName = `${userInfo.value.pkUserInfo}_${timestamp}.${extension}`
-
-    // First, upload the file to get the URL
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('fileName', fileName)
-
-    const response = await request('/api/uploadAvatar', {
-      method: 'POST',
-      body: formData
-    })
-
-    if (response) {
-      // Update user profile with the new avatar URL
-      userProfile.value.avatar = response
-      
-      const updatedUserInfo = {
-        ...userInfo.value,
-        avatar: response
-      }
-      localStorage.setItem('userInfo', JSON.stringify(updatedUserInfo))
-      userInfo.value = updatedUserInfo
-
-      // Update user info in the database
-      await request('/api/UpdateUser', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          pkUserInfo: userInfo.value.pkUserInfo,
-          username: userProfile.value.username,
-          email: userProfile.value.email,
-          phone: userProfile.value.phone,
-          avatar: response,
-          enabled: true
-        })
-      })
-
-      showToast(t('profile.messages.avatarSuccess'), 'success')
-    }
-  } catch (error: any) {
-    showModal(
-      t('profile.uploadAvatar'),
-      error.message || t('profile.messages.avatarFailed'),
-      'error'
-    )
-  } finally {
-    avatarLoading.value = false
-  }
+  localStorage.setItem('userInfo', JSON.stringify(updatedUserInfo))
+  userInfo.value = updatedUserInfo
 }
 
 // Form validation
@@ -277,37 +213,10 @@ const handleLogout = async () => {
         <!-- Profile Header -->
         <div class="flex items-center gap-8 mb-12">
           <div class="relative">
-            <img 
-              :src="userProfile.avatar" 
-              :alt="userProfile.username"
-              class="w-32 h-32 rounded-full object-cover neumorphic"
-            >
-            <div 
-              v-if="editMode"
-              class="absolute bottom-0 right-0 flex gap-2"
-            >
-              <input
-                type="file"
-                accept="image/*"
-                class="hidden"
-                id="avatar-upload"
-                @change="handleAvatarUpload"
-              >
-              <label 
-                for="avatar-upload"
-                class="glass px-3 py-1 rounded-full hover:bg-brand-orange/10 transition-colors cursor-pointer"
-                :class="{ 'opacity-50 cursor-not-allowed': avatarLoading }"
-              >
-                {{ avatarLoading ? t('profile.uploading') : t('profile.uploadAvatar') }}
-              </label>
-              <button 
-                @click="userProfile.avatar = 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + Math.random()"
-                class="glass px-3 py-1 rounded-full hover:bg-brand-orange/10 transition-colors"
-                :disabled="avatarLoading"
-              >
-                🔄
-              </button>
-            </div>
+            <AvatarUpload
+              :current-avatar="userProfile.avatar"
+              @upload-success="handleAvatarUploadSuccess"
+            />
           </div>
           
           <div class="flex-1">
