@@ -6,6 +6,24 @@ info:
     eliminated by server-side developers
   version: 1.0
 paths:
+  /:
+    post:
+      tags:
+        - ChatController
+      operationId: analysisByAI
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatForm'
+        required: true
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
   /DeleteUser:
     delete:
       tags:
@@ -85,7 +103,7 @@ paths:
         - TimedoroController
       operationId: analysis
       parameters:
-        - name: p
+        - name: pkTimedoro
           in: path
           required: true
           schema:
@@ -117,8 +135,8 @@ paths:
           content:
             application/json:
               schema:
-                type: integer
-                format: int32
+                type: number
+                format: double
   /auth/changeEnabled:
     post:
       tags:
@@ -235,6 +253,28 @@ paths:
       responses:
         200:
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dynamic_Creation'
+  /chat:
+    post:
+      tags:
+        - ChatController
+      operationId: chat
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatForm'
+        required: true
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
   /create:
     post:
       tags:
@@ -302,7 +342,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Dynamic_Timedoro'
+                $ref: '#/components/schemas/ResponseEntity_Object'
   /createWork:
     post:
       tags:
@@ -435,6 +475,27 @@ paths:
       responses:
         200:
           description: OK
+  /effectiveKanban:
+    get:
+      tags:
+        - AnalysisController
+      operationId: getPlansScoreByUserId
+      parameters:
+        - name: pkUserInfo
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tuple2_double_LocalDate'
   /fileDownload:
     get:
       tags:
@@ -454,6 +515,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResponseEntity_StreamingResponseBody'
+  /getMessage:
+    get:
+      tags:
+        - ChatController
+      operationId: getMassage
+      parameters:
+        - name: memoryId
+          in: query
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
   /oneWorks:
     get:
       tags:
@@ -750,6 +829,31 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Dynamic_Creation'
+  /searchByUserId:
+    get:
+      tags:
+        - CreationController
+      operationId: findByPkUserInfo
+      parameters:
+        - name: pkUserInfo
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: keyword
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Dynamic_Creation'
   /update:
     put:
       tags:
@@ -912,6 +1016,15 @@ paths:
                   $ref: '#/components/schemas/Dynamic_Creation'
 components:
   schemas:
+    ChatForm:
+      type: object
+      properties:
+        memoryId:
+          nullable: true
+          type: integer
+          format: int64
+        message:
+          type: string
     Dynamic_UserInfo:
       type: object
       properties:
@@ -1015,9 +1128,10 @@ components:
         planName:
           description: 计划名称
           type: string
-        fkUserInfoId:
-          type: integer
-          format: int64
+        score:
+          nullable: true
+          type: number
+          format: double
         fkUserInfo:
           $ref: '#/components/schemas/Dynamic_UserInfo'
         timedoroes:
@@ -1051,6 +1165,7 @@ components:
           format: int64
         timeSlice:
           description: '时间切片起始属性（如2025-03-18 14:00:00）'
+          nullable: true
           type: string
         creations:
           type: array
@@ -1083,6 +1198,14 @@ components:
           format: int32
         csynopsis:
           nullable: true
+          type: string
+    Tuple2_double_LocalDate:
+      type: object
+      properties:
+        _1:
+          type: number
+          format: double
+        _2:
           type: string
     ResponseEntity_StreamingResponseBody:
       type: object
