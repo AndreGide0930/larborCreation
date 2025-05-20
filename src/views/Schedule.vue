@@ -1,3 +1,20 @@
+<template>
+  <div class="schedule">
+    <div v-if="loading">Loading...</div>
+    <div v-else-if="error" class="error">{{ error }}</div>
+    <div v-else>
+      <!-- Schedule content will go here -->
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const loading = ref(false)
+const error = ref('')
+const selectedDate = ref(new Date().toISOString().split('T')[0])
+
 async function createPlan() {
   try {
     loading.value = true
@@ -36,3 +53,19 @@ async function createPlan() {
     loading.value = false
   }
 }
+
+// This function is referenced but not defined, adding a stub
+async function loadPlanForDate(date: string) {
+  // Implementation will be needed
+}
+</script>
+
+<style scoped>
+.schedule {
+  padding: 1rem;
+}
+
+.error {
+  color: red;
+}
+</style>
