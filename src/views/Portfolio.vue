@@ -167,6 +167,7 @@ const handleWorkHover = (work: Work, event: MouseEvent) => {
   if (!work.pkCreation) return
   
   if (currentPreviewWork.value?.pkCreation === work.pkCreation) {
+    updatePreviewPosition(event)
     return
   }
 
@@ -175,17 +176,15 @@ const handleWorkHover = (work: Work, event: MouseEvent) => {
   }
 
   updatePreviewPosition(event)
-
   currentPreviewWork.value = work
   showPreview.value = true
   isHovering.value = true
   previewLoading.value = true
   previewUrl.value = ''
 
-  const newPreviewUrl = `/api/preview?pkCreation=${work.pkCreation}`
   previewTimer = window.setTimeout(() => {
     if (isHovering.value && currentPreviewWork.value?.pkCreation === work.pkCreation) {
-      previewUrl.value = newPreviewUrl
+      previewUrl.value = `/api/preview?pkCreation=${work.pkCreation}`
       setTimeout(() => {
         if (isHovering.value && currentPreviewWork.value?.pkCreation === work.pkCreation) {
           previewLoading.value = false
@@ -196,20 +195,29 @@ const handleWorkHover = (work: Work, event: MouseEvent) => {
 }
 
 const updatePreviewPosition = (event: MouseEvent) => {
-  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  const rect = event.currentTarget.getBoundingClientRect()
+  const mouseX = event.clientX - rect.left
+  const mouseY = event.clientY - rect.top
+  
   const previewWidth = 400
   const previewHeight = 300
+  const margin = 20
   
-  const x = rect.left + (rect.width - previewWidth) / 2
-  const y = rect.top + (rect.height - previewHeight) / 2
+  let x = event.clientX + margin
+  let y = event.clientY - previewHeight / 2
   
-  const viewportWidth = window.innerWidth
-  const viewportHeight = window.innerHeight
+  // Adjust position if preview would go off screen
+  if (x + previewWidth > window.innerWidth) {
+    x = event.clientX - previewWidth - margin
+  }
   
-  const finalX = Math.max(10, Math.min(x, viewportWidth - previewWidth - 10))
-  const finalY = Math.max(10, Math.min(y, viewportHeight - previewHeight - 10))
+  if (y < margin) {
+    y = margin
+  } else if (y + previewHeight > window.innerHeight - margin) {
+    y = window.innerHeight - previewHeight - margin
+  }
   
-  previewPosition.value = { x: finalX, y: finalY }
+  previewPosition.value = { x, y }
 }
 
 const handleWorkLeave = () => {
@@ -463,25 +471,25 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Preview box -->
+    <!-- Preview Box -->
     <div 
       v-if="showPreview && currentPreviewWork"
-      class="fixed z-50 bg-white rounded-lg shadow-xl overflow-hidden cursor-pointer transform hover:scale-105 transition-transform"
+      class="fixed z-50 bg-white dark:bg-brand-blue/90 rounded-lg shadow-xl overflow-hidden"
       :style="{
         left: `${previewPosition.x}px`,
         top: `${previewPosition.y}px`,
         width: '400px',
-        height: '300px'
+        height: '300px',
+        transition: 'transform 0.2s ease-out'
       }"
-      @click="handleWorkClick(currentPreviewWork)"
       @mouseenter="isHovering = true"
       @mouseleave="handleWorkLeave"
     >
       <div class="relative w-full h-full">
-        <div v-if="previewLoading || !previewUrl" class="absolute inset-0 flex items-center justify-center bg-gray-100">
+        <div v-if="previewLoading || !previewUrl" class="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-brand-blue/50">
           <div class="text-center p-4">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange mx-auto"></div>
-            <div class="text-gray-600 mt-2">加载预览中...</div>
+            <div class="text-gray-600 dark:text-white/60 mt-2">加载预览中...</div>
           </div>
         </div>
         
@@ -491,13 +499,6 @@ onMounted(() => {
           class="w-full h-full border-0"
           @load="previewLoading = false"
         ></iframe>
-        
-        <div class="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/10 transition-colors pointer-events-none">
-          <div class="text-white opacity-0 group-hover:opacity-100 transition-opacity text-center">
-            <i class="fas fa-external-link-alt text-2xl"></i>
-            <div class="text-sm mt-1">点击在新窗口打开</div>
-          </div>
-        </div>
       </div>
     </div>
 
