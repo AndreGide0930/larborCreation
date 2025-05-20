@@ -3,7 +3,7 @@ import { ref, onMounted, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { request, put, multipartPost } from '../utils/request'
+import { request, putJson, multipartPost } from '../utils/request'
 import Toast from '../components/Toast.vue'
 import Modal from '../components/Modal.vue'
 import FormError from '../components/FormError.vue'
@@ -154,7 +154,7 @@ const handleUpdateProfile = async () => {
       enabled: true
     }
 
-    const response = await put('/api/UpdateUser', userData)
+    const response = await putJson('/api/UpdateUser', userData)
 
     if (response) {
       const updatedUserInfo = {
