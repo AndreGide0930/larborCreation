@@ -97,6 +97,305 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResponseEntity_Object'
+  /admin/permissions:
+    get:
+      tags:
+        - AdminController
+      operationId: getAllPermissions
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+    post:
+      tags:
+        - AdminController
+      operationId: createPermission
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PermissionInput'
+        required: true
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+  /admin/permissions/{permId}:
+    put:
+      tags:
+        - AdminController
+      operationId: updatePermission
+      parameters:
+        - name: permId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PermissionInput'
+        required: true
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+    delete:
+      tags:
+        - AdminController
+      operationId: deletePermission
+      parameters:
+        - name: permId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+  /admin/roles:
+    get:
+      tags:
+        - AdminController
+      operationId: getAllRoles
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+    post:
+      tags:
+        - AdminController
+      operationId: createRole
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dynamic_Role'
+        required: true
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+  /admin/roles/{roleId}:
+    put:
+      tags:
+        - AdminController
+      operationId: updateRole
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dynamic_Role'
+        required: true
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+    delete:
+      tags:
+        - AdminController
+      operationId: deleteRole
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+  /admin/roles/{roleId}/assignPermission/{permId}:
+    post:
+      tags:
+        - AdminController
+      operationId: assignPermissionToRole
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: permId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+  /admin/roles/{roleId}/removePermission/{permId}:
+    delete:
+      tags:
+        - AdminController
+      operationId: removePermissionFromRole
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: permId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+  /admin/users:
+    get:
+      tags:
+        - AdminController
+      operationId: getAllUsers
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+  /admin/users/{userId}:
+    get:
+      tags:
+        - AdminController
+      operationId: getUserDetails
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+  /admin/users/{userId}/assignRole/{roleId}:
+    post:
+      tags:
+        - AdminController
+      operationId: assignRoleToUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+  /admin/users/{userId}/removeRole/{roleId}:
+    delete:
+      tags:
+        - AdminController
+      operationId: removeRoleFromUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+  /admin/users/{userId}/setEnabled:
+    put:
+      tags:
+        - AdminController
+      operationId: setUserEnabledStatus
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: enabled
+          in: query
+          required: true
+          schema:
+            type: boolean
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
   /analysis/{pkTimedoro}:
     get:
       tags:
@@ -137,6 +436,127 @@ paths:
               schema:
                 type: number
                 format: double
+  /announcements/active:
+    get:
+      tags:
+        - AnnouncementController
+      operationId: getActiveAnnouncements
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_List_Dynamic_SystemAnnouncement'
+  /announcements/admin:
+    post:
+      tags:
+        - AnnouncementController
+      operationId: createAnnouncement
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnnouncementInput'
+        required: true
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+  /announcements/admin/all:
+    get:
+      tags:
+        - AnnouncementController
+      operationId: getAllAnnouncementsForAdmin
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_List_Dynamic_SystemAnnouncement'
+  /announcements/admin/{announcementId}:
+    get:
+      tags:
+        - AnnouncementController
+      operationId: getAnnouncementByIdForAdmin
+      parameters:
+        - name: announcementId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+    put:
+      tags:
+        - AnnouncementController
+      operationId: updateAnnouncement
+      parameters:
+        - name: announcementId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnnouncementInput'
+        required: true
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+    delete:
+      tags:
+        - AnnouncementController
+      operationId: deleteAnnouncement
+      parameters:
+        - name: announcementId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
+  /auth/adminLogin:
+    get:
+      tags:
+        - AuthController
+      operationId: adminLogin
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_Object'
   /auth/changeEnabled:
     post:
       tags:
@@ -552,6 +972,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Dynamic_Creation'
+  /preview:
+    get:
+      tags:
+        - WorksController
+      operationId: previewFile
+      parameters:
+        - name: pkCreation
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseEntity_StreamingResponseBody'
   /readAllWorkById:
     get:
       tags:
@@ -943,9 +1382,14 @@ paths:
   /uploadAvatar:
     put:
       tags:
-        - UserController
-      operationId: uploadAvatar
+        - WorksController
+      operationId: putObject
       parameters:
+        - name: fileName
+          in: query
+          required: true
+          schema:
+            type: string
         - name: pkUserInfo
           in: query
           required: true
@@ -967,7 +1411,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResponseEntity_Object'
+                type: string
   /works/{pkCreation}/timedoro/{pkTimedoro}:
     delete:
       tags:
@@ -993,6 +1437,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResponseEntity_Object'
+  /worksUpload:
+    post:
+      tags:
+        - WorksController
+      operationId: uploadWithFile
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                inputJson:
+                  type: string
+            encoding:
+              inputJson:
+                contentType: application/json
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dynamic_Creation'
   /{pkUserInfo}:
     get:
       tags:
@@ -1019,6 +1489,8 @@ components:
     ChatForm:
       type: object
       properties:
+        pkUserInfo:
+          type: string
         memoryId:
           nullable: true
           type: integer
@@ -1078,6 +1550,89 @@ components:
         body:
           nullable: true
           type: object
+    PermissionInput:
+      type: object
+      properties:
+        permId:
+          description: 权限ID
+          nullable: true
+          type: integer
+          format: int32
+        permName:
+          description: '权限标识（如user:create）'
+          type: string
+        permDesc:
+          description: 权限描述
+          nullable: true
+          type: string
+    Dynamic_Role:
+      type: object
+      properties:
+        roleId:
+          description: 角色ID
+          type: integer
+          format: int32
+        roleType:
+          description: 角色名称（如admin、user）
+          type: string
+          enum:
+            - ADMIN
+            - USER
+        roleDesc:
+          description: 角色描述
+          nullable: true
+          type: string
+        createTime:
+          description: 创建时间
+          nullable: true
+          type: string
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dynamic_UserInfo'
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dynamic_Permission'
+    ResponseEntity_List_Dynamic_SystemAnnouncement:
+      type: object
+      properties:
+        statusCode:
+          $ref: '#/components/schemas/HttpStatusCode'
+        statusCodeValue:
+          type: integer
+          format: int32
+        headers:
+          $ref: '#/components/schemas/HttpHeaders'
+        body:
+          nullable: true
+          type: array
+          items:
+            $ref: '#/components/schemas/Dynamic_SystemAnnouncement'
+    AnnouncementInput:
+      type: object
+      properties:
+        pkAnnouncement:
+          nullable: true
+          type: integer
+          format: int64
+        title:
+          description: 公告标题
+          type: string
+        content:
+          description: 公告正文内容
+          type: string
+        startDate:
+          description: 公告生效时间（开始展示时间）
+          nullable: true
+          type: string
+        endDate:
+          description: 公告失效时间（停止展示时间，可选）
+          nullable: true
+          type: string
+        active:
+          description: '状态: 0 = 停用, 1 = 启用（支持手动开关）'
+          type: boolean
     Dynamic_Creation:
       type: object
       properties:
@@ -1240,35 +1795,6 @@ components:
         body:
           nullable: true
           type: string
-    Dynamic_Role:
-      type: object
-      properties:
-        roleId:
-          description: 角色ID
-          type: integer
-          format: int32
-        roleType:
-          description: 角色名称（如admin、user）
-          type: string
-          enum:
-            - ADMIN
-            - USER
-        roleDesc:
-          description: 角色描述
-          nullable: true
-          type: string
-        createTime:
-          description: 创建时间
-          nullable: true
-          type: string
-        users:
-          type: array
-          items:
-            $ref: '#/components/schemas/Dynamic_UserInfo'
-        permissions:
-          type: array
-          items:
-            $ref: '#/components/schemas/Dynamic_Permission'
     HttpStatusCode:
       type: object
       properties:
@@ -1407,16 +1933,6 @@ components:
             type: string
         empty:
           type: boolean
-    WorkInput_TargetOf_fkUserInfo:
-      type: object
-      properties:
-        pkUserInfo:
-          nullable: true
-          type: integer
-          format: int64
-    StreamingResponseBody:
-      type: object
-      properties:
     Dynamic_Permission:
       type: object
       properties:
@@ -1439,6 +1955,52 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Dynamic_Role'
+    Dynamic_SystemAnnouncement:
+      type: object
+      properties:
+        pkAnnouncement:
+          type: integer
+          format: int64
+        title:
+          description: 公告标题
+          type: string
+        content:
+          description: 公告正文内容
+          type: string
+        fkCreatedByUser:
+          description: 创建人ID（关联user_info表的pk_user_info字段）
+          nullable: true
+          type: integer
+          format: int64
+        createdAt:
+          description: 创建时间
+          nullable: true
+          type: string
+        updatedAt:
+          description: 最后更新时间
+          nullable: true
+          type: string
+        active:
+          description: '状态: 0 = 停用, 1 = 启用（支持手动开关）'
+          type: boolean
+        startDate:
+          description: 公告生效时间（开始展示时间）
+          nullable: true
+          type: string
+        endDate:
+          description: 公告失效时间（停止展示时间，可选）
+          nullable: true
+          type: string
+    WorkInput_TargetOf_fkUserInfo:
+      type: object
+      properties:
+        pkUserInfo:
+          nullable: true
+          type: integer
+          format: int64
+    StreamingResponseBody:
+      type: object
+      properties:
     MediaType:
       type: object
       properties:
