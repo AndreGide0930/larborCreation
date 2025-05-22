@@ -8,6 +8,10 @@ import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
 import Profile from '../views/Profile.vue'
 import Analysis from '../views/Analysis.vue'
+import AdminLogin from '../views/admin/AdminLogin.vue'
+import AdminDashboard from '../views/admin/Dashboard.vue'
+import UserManagement from '../views/admin/UserManagement.vue'
+import AnnouncementManagement from '../views/admin/AnnouncementManagement.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -59,6 +63,36 @@ const router = createRouter({
       name: 'register',
       component: Register,
       meta: { guest: true }
+    },
+    // Admin routes
+    {
+      path: '/admin/login',
+      name: 'adminLogin',
+      component: AdminLogin,
+      meta: { adminGuest: true }
+    },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: AdminDashboard,
+      meta: { requiresAdmin: true },
+      children: [
+        {
+          path: 'dashboard',
+          name: 'adminDashboard',
+          component: AdminDashboard
+        },
+        {
+          path: 'users',
+          name: 'userManagement',
+          component: UserManagement
+        },
+        {
+          path: 'announcements',
+          name: 'announcementManagement',
+          component: AnnouncementManagement
+        }
+      ]
     }
   ]
 })
@@ -66,8 +100,24 @@ const router = createRouter({
 // Navigation guard
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
+  const adminToken = localStorage.getItem('adminToken')
   
-  if (to.matched.some(record => record.meta.requiresAuth)) {
+  if (to.matched.some(record => record.meta.requiresAdmin)) {
+    if (!adminToken) {
+      next({
+        path: '/admin/login',
+        query: { redirect: to.fullPath }
+      })
+    } else {
+      next()
+    }
+  } else if (to.matched.some(record => record.meta.adminGuest)) {
+    if (adminToken) {
+      next('/admin/dashboard')
+    } else {
+      next()
+    }
+  } else if (to.matched.some(record => record.meta.requiresAuth)) {
     if (!authStore.isAuthenticated) {
       next({
         path: '/login',
